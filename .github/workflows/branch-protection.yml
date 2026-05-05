@@ -27,11 +27,15 @@ jobs:
               repo: context.repo.repo,
               branch: 'main',
               required_status_checks: {
+                // strict: true requires the branch to be up-to-date with main before merge
                 strict: true,
                 checks: [
+                  // Must match the job `name` field in .github/workflows/sync.yml exactly
                   { context: 'Sync check' }
                 ]
               },
+              // enforce_admins: false — admins can bypass if needed for urgent fixes.
+              // Set to true here if your policy requires no-bypass for everyone.
               enforce_admins: false,
               required_pull_request_reviews: {
                 required_approving_review_count: 1,
@@ -45,7 +49,9 @@ jobs:
             });
             console.log('Branch protection applied to main');
             console.log('  - Required status check : Sync check (sync.yml)');
+            console.log('  - Strict (up-to-date)   : true');
             console.log('  - Required PR reviews   : 1 approving review');
             console.log('  - Dismiss stale reviews : true');
             console.log('  - Force pushes          : blocked');
             console.log('  - Branch deletions      : blocked');
+            console.log('  - Enforce admins        : false (admins may bypass if needed)');
