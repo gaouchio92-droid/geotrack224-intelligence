@@ -1,41 +1,33 @@
 #!/bin/bash
 
 POLL_INTERVAL=30
+GITHUB_REPO="gaouchio92-droid/geotrack224-intelligence"
 
 echo "GitHub sync watcher started (polling every ${POLL_INTERVAL}s)"
-echo "Watching for uncommitted changes and unpushed commits on 'main'..."
+echo "Watching for unpushed commits on 'main' → github.com/${GITHUB_REPO}"
 
 while true; do
+  sleep "$POLL_INTERVAL"
+
   if [ -z "$GITHUB_TOKEN" ]; then
-    sleep "$POLL_INTERVAL"
     continue
   fi
 
   CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
   if [ "$CURRENT_BRANCH" != "main" ]; then
-    sleep "$POLL_INTERVAL"
     continue
   fi
 
-  if ! git diff --quiet HEAD 2>/dev/null || [ -n "$(git ls-files --others --exclude-standard 2>/dev/null)" ]; then
-    echo "$(date -u): Uncommitted changes detected — staging and committing..."
-    git add -A
-    if ! git diff --cached --quiet 2>/dev/null; then
-      git -c user.email="$(git config user.email 2>/dev/null || echo 'replit-sync@noreply.github.com')" \
-          -c user.name="$(git config user.name 2>/dev/null || echo 'Replit Sync')" \
-          commit -m "chore: auto-sync $(date -u '+%Y-%m-%dT%H:%M:%SZ')" 2>&1
-      echo "$(date -u): Auto-commit created."
-    fi
-  fi
+  PUSH_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPO}.git"
 
+  # Fetch remote HEAD SHA without needing a configured remote
+  REMOTE_SHA=$(git ls-remote "$PUSH_URL" refs/heads/main 2>/dev/null | awk '{print $1}' || echo "")
   LOCAL_SHA=$(git rev-parse HEAD 2>/dev/null || echo "")
-  REMOTE_SHA=$(git rev-parse github/main 2>/dev/null || echo "")
 
   if [ -n "$LOCAL_SHA" ] && [ "$LOCAL_SHA" != "$REMOTE_SHA" ]; then
-    echo "$(date -u): Local commits ahead of GitHub — syncing..."
-    bash scripts/sync-to-github.sh 2>&1 || \
+    echo "$(date -u): Local HEAD (${LOCAL_SHA:0:7}) differs from GitHub (${REMOTE_SHA:0:7}) — syncing..."
+    bash scripts/sync-to-github.sh 2>&1 && \
+      echo "$(date -u): Sync completed successfully." || \
       echo "$(date -u): Sync failed — will retry next cycle."
   fi
-
-  sleep "$POLL_INTERVAL"
 done
