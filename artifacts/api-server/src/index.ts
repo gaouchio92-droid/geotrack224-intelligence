@@ -3,6 +3,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { initWebSocket } from "./lib/websocket";
 import { initSimulator, startSimulator } from "./lib/simulator";
+import { seedAdminPasswords } from "./lib/seed";
 
 const rawPort = process.env["PORT"];
 
@@ -24,6 +25,8 @@ initWebSocket(server);
 
 server.listen(port, async () => {
   logger.info({ port }, "Server listening");
+
+  await seedAdminPasswords();
 
   try {
     await initSimulator();
