@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { alertsTable, devicesTable, activityTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { ListAlertsQueryParams, AcknowledgeAlertParams } from "@workspace/api-zod";
 
 const router = Router();
@@ -36,7 +36,7 @@ router.get("/alerts", async (req, res) => {
     .from(alertsTable)
     .leftJoin(devicesTable, eq(alertsTable.deviceId, devicesTable.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(alertsTable.createdAt)
+    .orderBy(desc(alertsTable.createdAt))
     .limit(query.data.limit ?? 50);
 
   res.json(alerts);
@@ -70,7 +70,7 @@ router.post("/alerts/:id/acknowledge", async (req, res) => {
     await db.insert(activityTable).values({
       deviceId: alert.deviceId,
       type: "alert_acknowledged",
-      description: `Alert acknowledged for ${device.name}: ${alert.message}`,
+      description: `Alerte acquittée — ${device.name} : ${alert.message}`,
       timestamp: now,
     });
   }

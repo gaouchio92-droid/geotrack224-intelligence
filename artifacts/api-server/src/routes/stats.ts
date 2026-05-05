@@ -53,6 +53,8 @@ router.get("/stats/activity", async (req, res) => {
 
   const limit = query.data.limit ?? 20;
 
+  const { desc } = await import("drizzle-orm");
+
   const activity = await db
     .select({
       id: activityTable.id,
@@ -64,7 +66,7 @@ router.get("/stats/activity", async (req, res) => {
     })
     .from(activityTable)
     .leftJoin(devicesTable, eq(activityTable.deviceId, devicesTable.id))
-    .orderBy(activityTable.timestamp)
+    .orderBy(desc(activityTable.timestamp))
     .limit(limit);
 
   res.json(activity);

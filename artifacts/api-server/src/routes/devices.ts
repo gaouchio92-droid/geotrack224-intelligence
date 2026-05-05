@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { devicesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import {
   ListDevicesQueryParams,
   CreateDeviceBody,
@@ -19,14 +19,14 @@ router.get("/devices", async (req, res) => {
     return;
   }
 
-  let devices = await db.select().from(devicesTable);
+  const conditions = [];
+  if (query.data.type) conditions.push(eq(devicesTable.type, query.data.type));
+  if (query.data.status) conditions.push(eq(devicesTable.status, query.data.status));
 
-  if (query.data.type) {
-    devices = devices.filter((d) => d.type === query.data.type);
-  }
-  if (query.data.status) {
-    devices = devices.filter((d) => d.status === query.data.status);
-  }
+  const devices = await db
+    .select()
+    .from(devicesTable)
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
 
   res.json(
     devices.map((d) => ({

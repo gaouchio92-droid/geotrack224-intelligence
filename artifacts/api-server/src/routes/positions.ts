@@ -50,10 +50,11 @@ router.post("/positions", async (req, res) => {
       .where(eq(devicesTable.id, deviceId));
 
     if (prevStatus !== newStatus) {
+      const statusFr = (s: string) => s === "moving" ? "en mouvement" : s === "stopped" ? "à l'arrêt" : "hors ligne";
       await db.insert(activityTable).values({
         deviceId,
         type: "status_change",
-        description: `${device.name} changed status from ${prevStatus} to ${newStatus}`,
+        description: `${device.name} : ${statusFr(prevStatus)} → ${statusFr(newStatus)}`,
         timestamp: ts,
       });
     }
@@ -65,7 +66,7 @@ router.post("/positions", async (req, res) => {
         .values({
           deviceId,
           type: "overspeed",
-          message: `${device.name} exceeded speed limit: ${speed.toFixed(1)} km/h (limit: ${speedLimit} km/h)`,
+          message: `${device.name} a dépassé la limite de ${speedLimit} km/h (vitesse : ${speed.toFixed(1)} km/h)`,
           severity: speed > speedLimit * 1.5 ? "critical" : speed > speedLimit * 1.2 ? "high" : "medium",
           createdAt: ts,
         })
@@ -82,7 +83,7 @@ router.post("/positions", async (req, res) => {
       await db.insert(activityTable).values({
         deviceId,
         type: "alert_triggered",
-        description: `Overspeed alert for ${device.name}: ${speed.toFixed(1)} km/h`,
+        description: `Alerte excès de vitesse — ${device.name} : ${speed.toFixed(1)} km/h`,
         timestamp: ts,
       });
     }
@@ -90,7 +91,7 @@ router.post("/positions", async (req, res) => {
     await db.insert(activityTable).values({
       deviceId,
       type: "position_update",
-      description: `${device.name} position updated at ${speed.toFixed(1)} km/h`,
+      description: `${device.name} — position mise à jour (${speed.toFixed(1)} km/h)`,
       timestamp: ts,
     });
 
@@ -168,35 +169,41 @@ router.get("/devices/:id/positions", async (req, res) => {
 });
 
 router.get("/positions/live", async (req, res) => {
-  const devices = await db.select().from(devicesTable);
+  // Single query: for each device, fetch the latest position via a lateral join equivalent
+  // using a subquery with DISTINCT ON (deviceId) ordered by timestamp DESC
+  const { sql } = await import("drizzle-orm");
 
-  const livePositions = await Promise.all(
-    devices.map(async (device) => {
-      const [latest] = await db
-        .select()
-        .from(positionsTable)
-        .where(eq(positionsTable.deviceId, device.id))
-        .orderBy(desc(positionsTable.timestamp))
-        .limit(1);
+  const rows = await db.execute(sql`
+    SELECT DISTINCT ON (p.device_id)
+      d.id         AS "deviceId",
+      d.name       AS "deviceName",
+      d.type       AS "deviceType",
+      d.status,
+      d.group_name AS "groupName",
+      p.latitude,
+      p.longitude,
+      p.speed,
+      p.heading,
+      p.timestamp
+    FROM devices d
+    INNER JOIN positions p ON p.device_id = d.id
+    ORDER BY p.device_id, p.timestamp DESC
+  `);
 
-      if (!latest) return null;
+  const livePositions = (rows.rows as any[]).map((r) => ({
+    deviceId: r.deviceId,
+    deviceName: r.deviceName,
+    deviceType: r.deviceType,
+    status: r.status,
+    groupName: r.groupName,
+    latitude: parseFloat(r.latitude),
+    longitude: parseFloat(r.longitude),
+    speed: parseFloat(r.speed),
+    heading: parseFloat(r.heading),
+    timestamp: r.timestamp,
+  }));
 
-      return {
-        deviceId: device.id,
-        deviceName: device.name,
-        deviceType: device.type,
-        status: device.status,
-        latitude: parseFloat(latest.latitude),
-        longitude: parseFloat(latest.longitude),
-        speed: parseFloat(latest.speed),
-        heading: parseFloat(latest.heading),
-        timestamp: latest.timestamp,
-        groupName: device.groupName,
-      };
-    })
-  );
-
-  res.json(livePositions.filter(Boolean));
+  res.json(livePositions);
 });
 
 export default router;

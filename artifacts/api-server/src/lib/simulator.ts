@@ -87,20 +87,22 @@ async function tick() {
 
       if (device && device.status !== newStatus) {
         await db.update(devicesTable).set({ status: newStatus, updatedAt: now }).where(eq(devicesTable.id, sim.deviceId));
+        const statusFr = newStatus === "moving" ? "en mouvement" : "à l'arrêt";
         await db.insert(activityTable).values({
           deviceId: sim.deviceId,
           type: "status_change",
-          description: `${sim.name} changed to ${newStatus}`,
+          description: `${sim.name} est passé à : ${statusFr}`,
           timestamp: now,
         });
         broadcast({ type: "device_status_change", payload: { deviceId: sim.deviceId, deviceName: sim.name, status: newStatus } });
       }
 
       if (sim.speedLimit && sim.speed > sim.speedLimit) {
+        const alertMsg = `${sim.name} a dépassé la limite de ${sim.speedLimit} km/h (vitesse actuelle : ${sim.speed.toFixed(1)} km/h)`;
         const [alert] = await db.insert(alertsTable).values({
           deviceId: sim.deviceId,
           type: "overspeed",
-          message: `${sim.name} exceeded ${sim.speedLimit} km/h limit (${sim.speed.toFixed(1)} km/h)`,
+          message: alertMsg,
           severity: sim.speed > sim.speedLimit * 1.5 ? "critical" : "high",
           createdAt: now,
         }).returning();

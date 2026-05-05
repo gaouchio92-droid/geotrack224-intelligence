@@ -32,17 +32,12 @@ export function useWebsocket() {
             queryClient.invalidateQueries({ queryKey: getGetLivePositionsQueryKey() });
           } else if (data.type === 'alert') {
             // Show toast and invalidate alerts
-            const severityColor = {
-              [AlertSeverity.critical]: "destructive",
-              [AlertSeverity.high]: "default",
-              [AlertSeverity.medium]: "default",
-              [AlertSeverity.low]: "secondary",
-            } as const;
+            const isDestructive = data.payload?.severity === AlertSeverity.critical;
 
             toast({
-              title: `Alert: ${data.data?.deviceName || 'Unknown Device'}`,
-              description: data.data?.message || 'New alert received',
-              variant: severityColor[data.data?.severity as AlertSeverity] || "default"
+              title: `Alerte : ${data.payload?.deviceName || 'Appareil inconnu'}`,
+              description: data.payload?.message || 'Nouvelle alerte reçue',
+              variant: isDestructive ? "destructive" : "default",
             });
             queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() });
             queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });

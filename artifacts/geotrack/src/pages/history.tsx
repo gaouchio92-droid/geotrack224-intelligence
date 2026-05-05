@@ -24,15 +24,11 @@ const typeLabels: Record<string, string> = {
 export default function History() {
   const { id } = useParams<{ id: string }>();
   const deviceId = parseInt(id || "0", 10);
-  
-  const { data: device, isLoading: loadingDevice } = useGetDevice(deviceId, { 
-    query: { enabled: !!deviceId } 
-  });
-  
-  const { data: history = [], isLoading: loadingHistory } = useGetDeviceHistory(deviceId, { limit: 100 }, {
-    query: { enabled: !!deviceId }
-  });
 
+  const { data: device, isLoading: loadingDevice } = useGetDevice(deviceId);
+  const { data: history = [], isLoading: loadingHistory } = useGetDeviceHistory(deviceId, { limit: 100 });
+
+  if (!deviceId || isNaN(deviceId)) return <div className="p-8 text-center text-rose-500 font-mono">ID d'appareil invalide.</div>;
   if (loadingDevice) return <div className="p-8 text-center">Chargement de l'appareil...</div>;
   if (!device) return <div className="p-8 text-center text-rose-500">Appareil introuvable</div>;
 

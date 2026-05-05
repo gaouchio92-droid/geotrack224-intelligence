@@ -1,46 +1,84 @@
-# Workspace
+# GeoTrack224 Intelligence
 
-## Overview
+Plateforme professionnelle de géolocalisation et de suivi d'actifs en temps réel pour la Guinée (Afrique de l'Ouest), entièrement en français.
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+## Run & Operate
+
+- `pnpm run typecheck` — vérification TypeScript complète (tous les packages)
+- `pnpm run build` — typecheck + build de tous les packages
+- `pnpm --filter @workspace/api-spec run codegen` — regénère les hooks React Query et schemas Zod depuis l'OpenAPI spec
+- `pnpm --filter @workspace/db run push` — applique les changements de schéma DB (dev seulement)
+
+**Env vars requises :** `PORT` (géré par les workflows Replit), `DATABASE_URL` (PostgreSQL Replit), `SESSION_SECRET`, `GITHUB_TOKEN` (secret Replit, scope `repo`)
 
 ## Stack
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **Monorepo** : pnpm workspaces
+- **Runtime** : Node.js 24
+- **API** : Express 5 + pino logger (jamais `console.log` dans le serveur)
+- **DB** : PostgreSQL + Drizzle ORM
+- **Validation** : Zod (zod/v4) + drizzle-zod, Orval (codegen depuis OpenAPI)
+- **Frontend** : React + Vite, react-leaflet/OpenStreetMap, TanStack Query v5, shadcn/ui, date-fns `fr`
+- **Temps réel** : WebSocket (ws), simulateur GPS 3s (10 appareils en Guinée)
+- **Build** : esbuild (bundle CJS)
 
-## Key Commands
+## Where things live
 
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- `pnpm --filter @workspace/api-server run dev` — run API server locally
+```
+artifacts/
+  api-server/src/        — Express routes, simulateur, websocket
+    routes/              — devices.ts, positions.ts, alerts.ts, stats.ts
+    lib/                 — simulator.ts, websocket.ts, logger.ts
+  geotrack/src/          — Frontend React
+    pages/               — dashboard.tsx, devices.tsx, alerts.tsx, history.tsx
+    components/layout/   — AppLayout.tsx (sidebar + indicateur WebSocket), GeoTrackLogo.tsx
+    components/map/      — LiveMap.tsx (Leaflet)
+    hooks/               — use-websocket.ts
+lib/
+  api-spec/              — OpenAPI spec (source de vérité des contrats)
+  api-client-react/      — Hooks React Query générés par Orval
+  api-zod/               — Schémas Zod générés par Orval
+  db/                    — Schéma Drizzle + connexion PostgreSQL
+scripts/
+  sync-to-github.sh      — Push vers GitHub (fetch+merge si non-fast-forward)
+  github-sync-watcher.sh — Démon polling 30s, validation token, sync auto
+  post-merge.sh          — Appelé après chaque merge de tâche
+```
 
-See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+## Architecture decisions
 
-## GitHub Sync
+- **Contract-first** : OpenAPI spec → Orval génère hooks et schemas → serveur valide avec Zod
+- **Simulateur en mémoire** : 10 appareils simulés avec tick 3s, positions en Guinée (9–11.5°N, -14.5–-10.5°E)
+- **WebSocket broadcast** : `position_update`, `alert`, `device_status_change` — clients invalident React Query
+- **`DISTINCT ON` PostgreSQL** : `/positions/live` utilise une seule requête SQL au lieu de N+1
+- **Sync GitHub robuste** : push normal d'abord, fallback fetch+merge (`--strategy-option=ours`) si non-fast-forward
 
-Code is automatically synced to GitHub (`gaouchio92-droid/geotrack224-intelligence`) on every commit.
+## Product
 
-**How it works:**
-- `scripts/github-sync-watcher.sh` runs as the "GitHub Sync Watcher" Replit workflow. It polls every 30 s, auto-commits any uncommitted working-tree changes, and pushes new commits to GitHub.
-- `scripts/post-merge.sh` also calls `scripts/sync-to-github.sh` immediately after each task merge.
-- `.github/workflows/ci-after-sync.yml` is a GitHub Actions CI workflow that runs typecheck on every push to `main` (confirms the sync landed correctly).
+- Tableau de bord temps réel : carte Leaflet sombre + liste filtrée des cibles + stats
+- Gestion complète CRUD des appareils (véhicule/actif/personnel/drone)
+- Journal des alertes (excès vitesse, géofence, hors-ligne) avec acquittement
+- Historique des positions par appareil (timeline chronologique)
+- Indicateur de connexion WebSocket dans la sidebar (Live / Reconnexion)
+- Sync automatique vers GitHub toutes les 30s avec validation du token
 
-**Required setup:**
-- `GITHUB_TOKEN` **Replit Secret** — a GitHub personal access token with `repo` scope. Must be stored as a **Secret** (not a plain environment variable) in Replit's Secrets panel for security. The sync scripts validate the token against the GitHub API before every push and will exit with a clear error if the token is missing, invalid, or expired.
-- A `github` git remote pointing to the target repository: `git remote add github https://github.com/gaouchio92-droid/geotrack224-intelligence.git`
-- "GitHub Sync Watcher" Replit workflow must be running for continuous sync.
+## User preferences
 
-**Token health:**
-- Both `sync-to-github.sh` and `github-sync-watcher.sh` call the GitHub API to confirm the token is valid before any push.
-- A `WARNING` is logged when the token expires within 7 days so you have time to rotate it.
-- An `ERROR` is logged (and the sync is aborted) if the token is invalid or already expired.
+- Interface 100% en français (labels, messages, dates via date-fns `fr`)
+- Messages d'activité et d'alerte en français côté serveur
+- Logo SVG couleurs drapeau guinéen (rouge/jaune/vert)
+- Style dark professionnel, police mono pour les données techniques
+
+## Gotchas
+
+- Ne jamais utiliser `console.log` côté serveur : utiliser `req.log` dans les routes, `logger` ailleurs
+- La branche `main` sur GitHub est protégée (no force push) — le script gère le merge auto
+- Les filtres sur `devicesTable` doivent passer par SQL (`and(...conditions)`) pas en JS
+- Orval `UseQueryOptions` en TanQuery v5 requiert `queryKey` dans les options passées — ne pas passer `{ query: { enabled } }` directement ; gérer la condition avant l'appel du hook
+- Les workflows peuvent planter sur "port already in use" après un redémarrage système — redémarrer manuellement
+
+## Pointers
+
+- `.local/skills/pnpm-workspace/` — structure monorepo, TypeScript, codegen
+- `.local/skills/pnpm-workspace/references/server.md` — logging, routes Express
+- `.local/skills/pnpm-workspace/references/db.md` — schéma Drizzle, migrations
