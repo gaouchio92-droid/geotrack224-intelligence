@@ -49,6 +49,7 @@ export default function Dashboard() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [mobileView, setMobileView] = useState<"map" | "list">("map");
+  const [alertsExpanded, setAlertsExpanded] = useState(false);
 
   const { data: summary } = useGetDashboardSummary();
   const { data: positions = [] } = useGetLivePositions();
@@ -274,32 +275,54 @@ export default function Dashboard() {
             }}
           />
 
-          {/* Alert overlays */}
-          <div className="absolute top-4 right-4 w-72 sm:w-80 space-y-2 z-[400] pointer-events-none">
-            {alerts.slice(0, 3).map((alert) => (
-              <Card
-                key={alert.id}
+          {/* Alert overlay — collapsible pill */}
+          {alerts.length > 0 && (
+            <div className="absolute top-4 right-4 z-[400] flex flex-col items-end gap-2">
+              {/* Toggle badge */}
+              <button
+                onClick={() => setAlertsExpanded((v) => !v)}
                 className={cn(
-                  "pointer-events-auto border-l-4 shadow-xl bg-card/95 backdrop-blur",
-                  alert.severity === AlertSeverity.critical ? "border-l-rose-500" :
-                  alert.severity === AlertSeverity.high ? "border-l-orange-500" :
-                  alert.severity === AlertSeverity.medium ? "border-l-amber-500" : "border-l-blue-500"
+                  "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono font-bold shadow-xl border transition-colors",
+                  alerts.some((a) => a.severity === AlertSeverity.critical)
+                    ? "bg-rose-500 text-white border-rose-600 hover:bg-rose-600"
+                    : "bg-card/95 backdrop-blur border-border text-foreground hover:bg-card"
                 )}
               >
-                <CardContent className="p-3">
-                  <div className="flex justify-between items-start mb-1 gap-2">
-                    <span className="font-mono font-bold text-xs uppercase tracking-wider truncate">
-                      {alert.deviceName}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground font-mono shrink-0">
-                      {formatDistanceToNow(new Date(alert.createdAt), { locale: fr })}
-                    </span>
-                  </div>
-                  <p className="text-sm">{alert.message}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                <span>{alerts.filter((a) => !a.acknowledged).length} alerte{alerts.filter((a) => !a.acknowledged).length > 1 ? "s" : ""}</span>
+                <span className="opacity-60">{alertsExpanded ? "▲" : "▼"}</span>
+              </button>
+
+              {/* Expanded cards */}
+              {alertsExpanded && (
+                <div className="w-72 sm:w-80 space-y-2 pointer-events-none">
+                  {alerts.filter((a) => !a.acknowledged).slice(0, 4).map((alert) => (
+                    <Card
+                      key={alert.id}
+                      className={cn(
+                        "pointer-events-auto border-l-4 shadow-xl bg-card/95 backdrop-blur",
+                        alert.severity === AlertSeverity.critical ? "border-l-rose-500" :
+                        alert.severity === AlertSeverity.high ? "border-l-orange-500" :
+                        alert.severity === AlertSeverity.medium ? "border-l-amber-500" : "border-l-blue-500"
+                      )}
+                    >
+                      <CardContent className="p-3">
+                        <div className="flex justify-between items-start mb-1 gap-2">
+                          <span className="font-mono font-bold text-xs uppercase tracking-wider truncate">
+                            {alert.deviceName}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-mono shrink-0">
+                            {formatDistanceToNow(new Date(alert.createdAt), { locale: fr })}
+                          </span>
+                        </div>
+                        <p className="text-xs text-foreground/80 leading-snug">{alert.message}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

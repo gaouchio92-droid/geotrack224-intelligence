@@ -3,11 +3,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getGetLivePositionsQueryKey, getListAlertsQueryKey, getListDevicesQueryKey, getGetDashboardSummaryQueryKey, AlertSeverity } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 
+const TOAST_THROTTLE_MS = 15_000;
+
 export function useWebsocket() {
   const ws = useRef<WebSocket | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isConnected, setIsConnected] = useState(false);
+  const lastToastAt = useRef<number>(0);
+  const pendingAlerts = useRef<{ name: string; message: string; critical: boolean }[]>([]);
 
   useEffect(() => {
     let reconnectTimer: number;
@@ -28,19 +32,46 @@ export function useWebsocket() {
           const data = JSON.parse(event.data);
           
           if (data.type === 'position_update') {
-            // Update live positions
             queryClient.invalidateQueries({ queryKey: getGetLivePositionsQueryKey() });
           } else if (data.type === 'alert') {
-            // Show toast and invalidate alerts
-            const isDestructive = data.payload?.severity === AlertSeverity.critical;
-
-            toast({
-              title: `Alerte : ${data.payload?.deviceName || 'Appareil inconnu'}`,
-              description: data.payload?.message || 'Nouvelle alerte reçue',
-              variant: isDestructive ? "destructive" : "default",
-            });
             queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() });
             queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+
+            const isCritical = data.payload?.severity === AlertSeverity.critical;
+            const name = data.payload?.deviceName || 'Appareil inconnu';
+            const message = data.payload?.message || 'Nouvelle alerte reçue';
+
+            // Accumulate pending alerts
+            pendingAlerts.current.push({ name, message, critical: isCritical });
+
+            const now = Date.now();
+            const elapsed = now - lastToastAt.current;
+
+            if (elapsed >= TOAST_THROTTLE_MS) {
+              // Show immediately — flush pending
+              const batch = pendingAlerts.current;
+              pendingAlerts.current = [];
+              lastToastAt.current = now;
+
+              const count = batch.length;
+              const hasCritical = batch.some((a) => a.critical);
+              const first = batch[0];
+
+              if (count === 1) {
+                toast({
+                  title: `Alerte : ${first.name}`,
+                  description: first.message,
+                  variant: hasCritical ? "destructive" : "default",
+                });
+              } else {
+                toast({
+                  title: `${count} nouvelles alertes`,
+                  description: `Dont ${batch.filter((a) => a.critical).length} critique(s) — voir le journal`,
+                  variant: hasCritical ? "destructive" : "default",
+                });
+              }
+            }
+            // else: queued — will surface on next throttle window
           } else if (data.type === 'device_status_change') {
             queryClient.invalidateQueries({ queryKey: getListDevicesQueryKey() });
             queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
