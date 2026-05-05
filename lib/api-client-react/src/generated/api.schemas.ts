@@ -26,6 +26,14 @@ export const DeviceStatus = {
   offline: "offline",
 } as const;
 
+export type DeviceLastPositionSource =
+  (typeof DeviceLastPositionSource)[keyof typeof DeviceLastPositionSource];
+
+export const DeviceLastPositionSource = {
+  simulator: "simulator",
+  ingest: "ingest",
+} as const;
+
 export interface Device {
   id: number;
   name: string;
@@ -39,6 +47,7 @@ export interface Device {
   createdAt: string;
   updatedAt: string;
   lastIngestedAt?: string;
+  lastPositionSource?: DeviceLastPositionSource;
 }
 
 export type CreateDeviceBodyType =

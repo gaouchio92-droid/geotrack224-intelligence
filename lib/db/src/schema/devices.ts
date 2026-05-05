@@ -17,6 +17,7 @@ export const devicesTable = pgTable("devices", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   lastIngestedAt: timestamp("last_ingested_at"),
+  lastPositionSource: text("last_position_source").$type<"simulator" | "ingest">(),
 });
 
 export const insertDeviceSchema = createInsertSchema(devicesTable).omit({

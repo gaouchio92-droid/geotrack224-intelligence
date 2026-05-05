@@ -603,6 +603,9 @@ components:
         lastIngestedAt:
           type: string
           format: date-time
+        lastPositionSource:
+          type: string
+          enum: [simulator, ingest]
       required:
         - id
         - name

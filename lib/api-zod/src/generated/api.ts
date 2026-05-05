@@ -35,6 +35,7 @@ export const ListDevicesResponseItem = zod.object({
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
   lastIngestedAt: zod.coerce.date().optional(),
+  lastPositionSource: zod.enum(["simulator", "ingest"]).optional(),
 });
 export const ListDevicesResponse = zod.array(ListDevicesResponseItem);
 
@@ -71,6 +72,7 @@ export const GetDeviceResponse = zod.object({
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
   lastIngestedAt: zod.coerce.date().optional(),
+  lastPositionSource: zod.enum(["simulator", "ingest"]).optional(),
 });
 
 /**
@@ -102,6 +104,7 @@ export const UpdateDeviceResponse = zod.object({
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
   lastIngestedAt: zod.coerce.date().optional(),
+  lastPositionSource: zod.enum(["simulator", "ingest"]).optional(),
 });
 
 /**
@@ -136,6 +139,7 @@ export const AssignDeviceResponse = zod.object({
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
   lastIngestedAt: zod.coerce.date().optional(),
+  lastPositionSource: zod.enum(["simulator", "ingest"]).optional(),
 });
 
 /**
