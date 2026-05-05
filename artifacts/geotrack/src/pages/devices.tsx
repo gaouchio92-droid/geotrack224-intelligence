@@ -32,6 +32,11 @@ import { cn } from "@/lib/utils";
 
 const INGEST_URL = `${window.location.protocol}//${window.location.host}/api/ingest`;
 
+// Returns true when a real GPS tracker has ingested within the last 30 minutes.
+// 30 minutes is chosen to outlast normal tracker reporting intervals (typically 10s–5min)
+// while ensuring the badge disappears if a real tracker goes silent.
+// Combined with lastPositionSource === "ingest", this prevents false positives from
+// stale one-time ingests that are now only receiving simulator-generated positions.
 function isActiveRealTracker(lastIngestedAt: string | null | undefined): boolean {
   if (!lastIngestedAt) return false;
   return Date.now() - new Date(lastIngestedAt).getTime() < 30 * 60 * 1000;

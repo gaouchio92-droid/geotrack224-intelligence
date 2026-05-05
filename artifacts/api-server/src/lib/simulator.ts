@@ -86,9 +86,12 @@ async function tick() {
       const [device] = await db.select().from(devicesTable).where(eq(devicesTable.id, sim.deviceId));
 
       if (device) {
+        // Only set lastPositionSource to "simulator" when no real tracker has ingested recently.
+        // A 30-minute recency window prevents the simulator from overriding an active real tracker.
+        // Avoid writing when the field already shows "simulator" to prevent unnecessary DB churn.
         const recentIngest = device.lastIngestedAt &&
           now.getTime() - new Date(device.lastIngestedAt).getTime() < 30 * 60 * 1000;
-        if (!recentIngest) {
+        if (!recentIngest && device.lastPositionSource !== "simulator") {
           await db.update(devicesTable)
             .set({ lastPositionSource: "simulator" })
             .where(eq(devicesTable.id, sim.deviceId));
