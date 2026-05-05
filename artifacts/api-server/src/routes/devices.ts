@@ -8,6 +8,8 @@ import {
   UpdateDeviceBody,
   GetDeviceParams,
   DeleteDeviceParams,
+  AssignDeviceParams,
+  AssignDeviceBody,
 } from "@workspace/api-zod";
 
 const router = Router();
@@ -124,6 +126,39 @@ router.delete("/devices/:id", async (req, res) => {
 
   await db.delete(devicesTable).where(eq(devicesTable.id, params.data.id));
   res.status(204).send();
+});
+
+router.put("/devices/:id/assign", async (req, res) => {
+  const params = AssignDeviceParams.safeParse({ id: req.params.id });
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  const body = AssignDeviceBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+
+  const updateData: { updatedAt: Date; groupId?: number | null; userId?: number | null } = { updatedAt: new Date() };
+  if ("groupId" in body.data) updateData.groupId = body.data.groupId as number | null;
+  if ("userId" in body.data) updateData.userId = body.data.userId as number | null;
+
+  const [device] = await db
+    .update(devicesTable)
+    .set(updateData)
+    .where(eq(devicesTable.id, params.data.id))
+    .returning();
+
+  if (!device) {
+    res.status(404).json({ error: "Device not found" });
+    return;
+  }
+
+  res.json({
+    ...device,
+    speedLimit: device.speedLimit ? parseFloat(device.speedLimit) : undefined,
+  });
 });
 
 export default router;

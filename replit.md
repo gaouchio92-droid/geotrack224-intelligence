@@ -17,7 +17,7 @@ Plateforme professionnelle de géolocalisation et de suivi d'actifs en temps ré
 - **Runtime** : Node.js 24
 - **API** : Express 5 + pino logger (jamais `console.log` dans le serveur)
 - **DB** : PostgreSQL + Drizzle ORM
-- **Validation** : Zod (zod/v4) + drizzle-zod, Orval (codegen depuis OpenAPI)
+- **Validation** : Zod (v3, import depuis `"zod"`) + drizzle-zod, Orval (codegen depuis OpenAPI)
 - **Frontend** : React + Vite, react-leaflet/OpenStreetMap, TanStack Query v5, shadcn/ui, date-fns `fr`
 - **Temps réel** : WebSocket (ws), simulateur GPS 3s (10 appareils en Guinée)
 - **Build** : esbuild (bundle CJS)
@@ -27,18 +27,19 @@ Plateforme professionnelle de géolocalisation et de suivi d'actifs en temps ré
 ```
 artifacts/
   api-server/src/        — Express routes, simulateur, websocket
-    routes/              — devices.ts, positions.ts, alerts.ts, stats.ts
+    routes/              — devices.ts, positions.ts, alerts.ts, stats.ts, groups.ts, users.ts
     lib/                 — simulator.ts, websocket.ts, logger.ts
   geotrack/src/          — Frontend React
-    pages/               — dashboard.tsx, devices.tsx, alerts.tsx, history.tsx
+    pages/               — dashboard.tsx, devices.tsx, alerts.tsx, history.tsx, settings.tsx
     components/layout/   — AppLayout.tsx (sidebar + indicateur WebSocket), GeoTrackLogo.tsx
     components/map/      — LiveMap.tsx (Leaflet)
     hooks/               — use-websocket.ts
 lib/
   api-spec/              — OpenAPI spec (source de vérité des contrats)
   api-client-react/      — Hooks React Query générés par Orval
-  api-zod/               — Schémas Zod générés par Orval
+  api-zod/               — Schémas Zod générés par Orval (mode single → generated/api.ts)
   db/                    — Schéma Drizzle + connexion PostgreSQL
+    schema/              — devices.ts, groups.ts, users.ts, positions.ts, alerts.ts, activity.ts
 scripts/
   sync-to-github.sh      — Push vers GitHub (fetch+merge si non-fast-forward)
   github-sync-watcher.sh — Démon polling 30s, validation token, sync auto
@@ -52,6 +53,7 @@ scripts/
 - **WebSocket broadcast** : `position_update`, `alert`, `device_status_change` — clients invalident React Query
 - **`DISTINCT ON` PostgreSQL** : `/positions/live` utilise une seule requête SQL au lieu de N+1
 - **Sync GitHub robuste** : push normal d'abord, fallback fetch+merge (`--strategy-option=ours`) si non-fast-forward
+- **Orval Zod config** : `mode: "single"`, `target: "generated/api.ts"` — évite le conflit entre schémas Zod et types TypeScript générés séparément (problème avec `mode: "split"` + `schemas` option)
 
 ## Product
 
@@ -59,6 +61,7 @@ scripts/
 - Gestion complète CRUD des appareils (véhicule/actif/personnel/drone)
 - Journal des alertes (excès vitesse, géofence, hors-ligne) avec acquittement
 - Historique des positions par appareil (timeline chronologique)
+- **Paramètres système** : CRUD groupes (couleur, description), CRUD utilisateurs (rôle, groupe), assignation d'appareils à des groupes/utilisateurs
 - Indicateur de connexion WebSocket dans la sidebar (Live / Reconnexion)
 - Sync automatique vers GitHub toutes les 30s avec validation du token
 
@@ -72,10 +75,12 @@ scripts/
 ## Gotchas
 
 - Ne jamais utiliser `console.log` côté serveur : utiliser `req.log` dans les routes, `logger` ailleurs
+- Ne jamais importer `from "zod/v4"` — le workspace utilise zod v3 (`from "zod"`)
 - La branche `main` sur GitHub est protégée (no force push) — le script gère le merge auto
 - Les filtres sur `devicesTable` doivent passer par SQL (`and(...conditions)`) pas en JS
 - Orval `UseQueryOptions` en TanQuery v5 requiert `queryKey` dans les options passées — ne pas passer `{ query: { enabled } }` directement ; gérer la condition avant l'appel du hook
 - Les workflows peuvent planter sur "port already in use" après un redémarrage système — redémarrer manuellement
+- Orval regenerates `lib/api-zod/src/index.ts` — ne pas éditer manuellement ; modifier `orval.config.ts` à la place
 
 ## Pointers
 

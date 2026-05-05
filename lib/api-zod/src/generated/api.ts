@@ -30,6 +30,8 @@ export const ListDevicesResponseItem = zod.object({
   imei: zod.string(),
   speedLimit: zod.number().optional(),
   groupName: zod.string().optional(),
+  groupId: zod.number().optional(),
+  userId: zod.number().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -44,6 +46,8 @@ export const CreateDeviceBody = zod.object({
   imei: zod.string(),
   speedLimit: zod.number().optional(),
   groupName: zod.string().optional(),
+  groupId: zod.number().optional(),
+  userId: zod.number().optional(),
 });
 
 /**
@@ -61,6 +65,8 @@ export const GetDeviceResponse = zod.object({
   imei: zod.string(),
   speedLimit: zod.number().optional(),
   groupName: zod.string().optional(),
+  groupId: zod.number().optional(),
+  userId: zod.number().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -77,6 +83,8 @@ export const UpdateDeviceBody = zod.object({
   type: zod.enum(["vehicle", "asset", "person", "drone"]).optional(),
   speedLimit: zod.number().optional(),
   groupName: zod.string().optional(),
+  groupId: zod.number().optional(),
+  userId: zod.number().optional(),
 });
 
 export const UpdateDeviceResponse = zod.object({
@@ -87,6 +95,8 @@ export const UpdateDeviceResponse = zod.object({
   imei: zod.string(),
   speedLimit: zod.number().optional(),
   groupName: zod.string().optional(),
+  groupId: zod.number().optional(),
+  userId: zod.number().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -96,6 +106,32 @@ export const UpdateDeviceResponse = zod.object({
  */
 export const DeleteDeviceParams = zod.object({
   id: zod.coerce.number(),
+});
+
+/**
+ * @summary Assign a device to a group and/or user
+ */
+export const AssignDeviceParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const AssignDeviceBody = zod.object({
+  groupId: zod.number().nullish(),
+  userId: zod.number().nullish(),
+});
+
+export const AssignDeviceResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  type: zod.enum(["vehicle", "asset", "person", "drone"]),
+  status: zod.enum(["moving", "stopped", "offline"]),
+  imei: zod.string(),
+  speedLimit: zod.number().optional(),
+  groupName: zod.string().optional(),
+  groupId: zod.number().optional(),
+  userId: zod.number().optional(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
 });
 
 /**
@@ -241,3 +277,115 @@ export const GetRecentActivityResponseItem = zod.object({
 export const GetRecentActivityResponse = zod.array(
   GetRecentActivityResponseItem,
 );
+
+/**
+ * @summary List all groups
+ */
+export const ListGroupsResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  description: zod.string().optional(),
+  color: zod.string(),
+  deviceCount: zod.number().optional(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListGroupsResponse = zod.array(ListGroupsResponseItem);
+
+/**
+ * @summary Create a new group
+ */
+export const CreateGroupBody = zod.object({
+  name: zod.string(),
+  description: zod.string().optional(),
+  color: zod.string(),
+});
+
+/**
+ * @summary Update a group
+ */
+export const UpdateGroupParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateGroupBody = zod.object({
+  name: zod.string().optional(),
+  description: zod.string().optional(),
+  color: zod.string().optional(),
+});
+
+export const UpdateGroupResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  description: zod.string().optional(),
+  color: zod.string(),
+  deviceCount: zod.number().optional(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a group
+ */
+export const DeleteGroupParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List all users
+ */
+export const ListUsersResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["admin", "operator", "viewer"]),
+  groupId: zod.number().optional(),
+  groupName: zod.string().optional(),
+  deviceCount: zod.number().optional(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListUsersResponse = zod.array(ListUsersResponseItem);
+
+/**
+ * @summary Create a new user
+ */
+export const CreateUserBody = zod.object({
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["admin", "operator", "viewer"]).optional(),
+  groupId: zod.number().optional(),
+});
+
+/**
+ * @summary Update a user
+ */
+export const UpdateUserParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateUserBody = zod.object({
+  name: zod.string().optional(),
+  email: zod.string().optional(),
+  role: zod.enum(["admin", "operator", "viewer"]).optional(),
+  groupId: zod.number().optional(),
+});
+
+export const UpdateUserResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["admin", "operator", "viewer"]),
+  groupId: zod.number().optional(),
+  groupName: zod.string().optional(),
+  deviceCount: zod.number().optional(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a user
+ */
+export const DeleteUserParams = zod.object({
+  id: zod.coerce.number(),
+});

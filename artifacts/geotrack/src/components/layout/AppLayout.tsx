@@ -122,10 +122,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Footer */}
         <div className="p-4 border-t border-border/50 shrink-0">
-          <div className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground cursor-pointer transition-colors">
-            <Settings className="w-4 h-4 shrink-0" />
-            Paramètres système
-          </div>
+          <Link href="/settings">
+            <div
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                isActive("/settings")
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+              )}
+              data-testid="nav-settings"
+              onClick={() => setMobileOpen(false)}
+            >
+              <Settings className="w-4 h-4 shrink-0" />
+              Paramètres système
+            </div>
+          </Link>
           <div className="mt-2 px-3 py-1.5 flex items-center gap-2">
             <div className={cn(
               "w-1.5 h-1.5 rounded-full shrink-0",
@@ -145,7 +156,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* ── Bottom navigation (mobile only) ── */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 h-16 bg-card border-t border-border flex items-stretch">
-        {navigation.map((item) => (
+        {[...navigation, { name: "Paramètres", href: "/settings", icon: Settings, testId: "settings" }].map((item) => (
           <Link key={item.href} href={item.href} className="flex-1">
             <div className={cn(
               "flex flex-col items-center justify-center h-full gap-1 text-[10px] font-mono transition-colors",

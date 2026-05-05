@@ -34,6 +34,8 @@ export interface Device {
   imei: string;
   speedLimit?: number;
   groupName?: string;
+  groupId?: number;
+  userId?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -54,6 +56,8 @@ export interface CreateDeviceBody {
   imei: string;
   speedLimit?: number;
   groupName?: string;
+  groupId?: number;
+  userId?: number;
 }
 
 export type UpdateDeviceBodyType =
@@ -71,6 +75,13 @@ export interface UpdateDeviceBody {
   type?: UpdateDeviceBodyType;
   speedLimit?: number;
   groupName?: string;
+  groupId?: number;
+  userId?: number;
+}
+
+export interface AssignDeviceBody {
+  groupId?: number | null;
+  userId?: number | null;
 }
 
 export interface Position {
@@ -187,6 +198,80 @@ export interface ActivityEvent {
   type: ActivityEventType;
   description: string;
   timestamp: string;
+}
+
+export interface Group {
+  id: number;
+  name: string;
+  description?: string;
+  color: string;
+  deviceCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateGroupBody {
+  name: string;
+  description?: string;
+  color: string;
+}
+
+export interface UpdateGroupBody {
+  name?: string;
+  description?: string;
+  color?: string;
+}
+
+export type UserRole = (typeof UserRole)[keyof typeof UserRole];
+
+export const UserRole = {
+  admin: "admin",
+  operator: "operator",
+  viewer: "viewer",
+} as const;
+
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  groupId?: number;
+  groupName?: string;
+  deviceCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateUserBodyRole =
+  (typeof CreateUserBodyRole)[keyof typeof CreateUserBodyRole];
+
+export const CreateUserBodyRole = {
+  admin: "admin",
+  operator: "operator",
+  viewer: "viewer",
+} as const;
+
+export interface CreateUserBody {
+  name: string;
+  email: string;
+  role?: CreateUserBodyRole;
+  groupId?: number;
+}
+
+export type UpdateUserBodyRole =
+  (typeof UpdateUserBodyRole)[keyof typeof UpdateUserBodyRole];
+
+export const UpdateUserBodyRole = {
+  admin: "admin",
+  operator: "operator",
+  viewer: "viewer",
+} as const;
+
+export interface UpdateUserBody {
+  name?: string;
+  email?: string;
+  role?: UpdateUserBodyRole;
+  groupId?: number;
 }
 
 export type ListDevicesParams = {

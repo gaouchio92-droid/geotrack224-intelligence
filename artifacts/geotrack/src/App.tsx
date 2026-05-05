@@ -7,6 +7,7 @@ import Dashboard from "@/pages/dashboard";
 import Devices from "@/pages/devices";
 import Alerts from "@/pages/alerts";
 import History from "@/pages/history";
+import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -19,6 +20,7 @@ function Router() {
         <Route path="/devices" component={Devices} />
         <Route path="/alerts" component={Alerts} />
         <Route path="/history/:id" component={History} />
+        <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>
