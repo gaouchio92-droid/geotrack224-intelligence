@@ -36,6 +36,11 @@ Code is automatically synced to GitHub (`gaouchio92-droid/geotrack224-intelligen
 - `.github/workflows/ci-after-sync.yml` is a GitHub Actions CI workflow that runs typecheck on every push to `main` (confirms the sync landed correctly).
 
 **Required setup:**
-- `GITHUB_TOKEN` environment variable — a GitHub personal access token with `repo` scope (already configured via the GitHub integration).
+- `GITHUB_TOKEN` **Replit Secret** — a GitHub personal access token with `repo` scope. Must be stored as a **Secret** (not a plain environment variable) in Replit's Secrets panel for security. The sync scripts validate the token against the GitHub API before every push and will exit with a clear error if the token is missing, invalid, or expired.
 - A `github` git remote pointing to the target repository: `git remote add github https://github.com/gaouchio92-droid/geotrack224-intelligence.git`
 - "GitHub Sync Watcher" Replit workflow must be running for continuous sync.
+
+**Token health:**
+- Both `sync-to-github.sh` and `github-sync-watcher.sh` call the GitHub API to confirm the token is valid before any push.
+- A `WARNING` is logged when the token expires within 7 days so you have time to rotate it.
+- An `ERROR` is logged (and the sync is aborted) if the token is invalid or already expired.
