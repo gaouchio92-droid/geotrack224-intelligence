@@ -13,10 +13,71 @@ if [ "$CURRENT_BRANCH" != "main" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Notification configuration (all via environment variables — no code changes
+# needed to adjust behaviour):
+#
+#   NOTIFY_WEBHOOK_URL    — webhook endpoint to POST alerts to (Slack, Discord,
+#                           or any service that accepts a JSON POST body).
+#                           Leave unset to disable notifications.
+#   NOTIFY_DAYS_THRESHOLD — alert when the token expires within this many days.
+#                           Defaults to 7.
+#
+# The payload includes both "text" (Slack) and "content" (Discord) keys so
+# the same URL works for either service without extra config.
+# ---------------------------------------------------------------------------
+NOTIFY_DAYS_THRESHOLD="${NOTIFY_DAYS_THRESHOLD:-7}"
+
+# send_token_alert <days_remaining> <expiry_date>
+#   Sends a webhook notification if NOTIFY_WEBHOOK_URL is configured.
+#   A cooldown file prevents duplicate alerts within a 24-hour window.
+send_token_alert() {
+  local days_remaining="$1"
+  local expiry_date="$2"
+
+  if [ -z "$NOTIFY_WEBHOOK_URL" ]; then
+    return 0
+  fi
+
+  local cooldown_file="/tmp/github-token-notify-cooldown"
+  local cooldown_seconds=86400
+  local now
+  now=$(date +%s)
+
+  if [ -f "$cooldown_file" ]; then
+    local last_sent
+    last_sent=$(cat "$cooldown_file" 2>/dev/null || echo "0")
+    if [ $(( now - last_sent )) -lt "$cooldown_seconds" ]; then
+      echo "INFO: Notification suppressed — already sent within the last 24 hours."
+      return 0
+    fi
+  fi
+
+  local message
+  message="⚠️ GitHub token expiry warning: GITHUB_TOKEN for geotrack224-intelligence expires in ${days_remaining} day(s) (on ${expiry_date}). Please rotate the token in Replit Secrets to avoid sync failures."
+
+  local http_code
+  http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+    -X POST \
+    -H "Content-Type: application/json" \
+    --data "{\"text\": \"${message}\", \"content\": \"${message}\"}" \
+    "$NOTIFY_WEBHOOK_URL" 2>/dev/null || echo "000")
+
+  if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+    echo "INFO: Token expiry alert sent via webhook (HTTP ${http_code})."
+    echo "$now" > "$cooldown_file"
+  else
+    echo "WARNING: Failed to send token expiry alert via webhook (HTTP ${http_code})."
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # validate_github_token
 #   Makes a single authenticated request to the GitHub API.
 #   - Exits with error (non-zero) if the token is invalid / expired / revoked.
-#   - Logs a WARNING when the token is within 7 days of its expiry date.
+#   - Logs a WARNING and fires a webhook alert when the token is within
+#     NOTIFY_DAYS_THRESHOLD days of its expiry date.
+#   GitHub includes the header "github-authentication-token-expiration"
+#   in API responses when the token carries an expiry date.
 # ---------------------------------------------------------------------------
 validate_github_token() {
   local header_file
@@ -50,9 +111,10 @@ validate_github_token() {
     if [ -n "$expiry_epoch" ]; then
       now_epoch=$(date +%s)
       days_remaining=$(( (expiry_epoch - now_epoch) / 86400 ))
-      if [ "$days_remaining" -le 7 ]; then
+      if [ "$days_remaining" -le "$NOTIFY_DAYS_THRESHOLD" ]; then
         echo "WARNING: GITHUB_TOKEN expires in ${days_remaining} day(s) (on ${expiry_value})."
         echo "WARNING: Please rotate the token in Replit Secrets before it expires to avoid sync failures."
+        send_token_alert "$days_remaining" "$expiry_value"
       else
         echo "INFO: GITHUB_TOKEN is valid and expires in ${days_remaining} day(s) (on ${expiry_value})."
       fi
@@ -76,27 +138,35 @@ echo "Syncing branch 'main' to GitHub repository: ${GITHUB_REPO}"
 # them before retrying. This handles the case where task agents have pushed
 # commits directly to GitHub, causing the histories to diverge.
 # ---------------------------------------------------------------------------
-if git push "$PUSH_URL" HEAD:main 2>&1; then
+if git push "$PUSH_URL" HEAD:main 2>/tmp/push_err; then
   echo "Sync to GitHub completed successfully."
   exit 0
 fi
 
-echo "INFO: Non-fast-forward detected — fetching remote changes and merging..."
+push_err=$(cat /tmp/push_err)
+rm -f /tmp/push_err
 
-# Fetch remote into a temporary ref so we don't need a configured remote
-git fetch "$PUSH_URL" main:refs/remotes/github-sync/main 2>&1
+if echo "$push_err" | grep -q "non-fast-forward\|fetch first\|cannot lock ref"; then
+  echo "WARNING: Non-fast-forward push detected — fetching remote changes and merging."
 
-# Merge the remote changes into local HEAD (prefer local on conflict)
-git -c user.email="replit-sync@noreply.github.com" \
-    -c user.name="Replit Sync" \
-    merge refs/remotes/github-sync/main \
-    --no-edit \
-    --strategy-option=ours \
-    -m "chore: merge remote changes from GitHub [auto-sync]" 2>&1
+  FETCH_REMOTE="github-sync-fetch-remote-$$"
+  git remote add "$FETCH_REMOTE" "$PUSH_URL" 2>/dev/null || true
+  git fetch "$FETCH_REMOTE" main
 
-# Now push the merged result
-git -c user.email="replit-sync@noreply.github.com" \
-    -c user.name="Replit Sync" \
-    push "$PUSH_URL" HEAD:main 2>&1
+  # Merge remote changes, preferring our local version on conflict
+  git merge --no-edit -X ours "FETCH_HEAD" \
+    -m "chore: merge remote GitHub changes (sync reconciliation)"
 
-echo "Sync to GitHub completed successfully (after merge)."
+  git remote remove "$FETCH_REMOTE" 2>/dev/null || true
+
+  # Retry the push after the merge
+  if git push "$PUSH_URL" HEAD:main; then
+    echo "Sync to GitHub completed successfully (after merge)."
+  else
+    echo "ERROR: Push failed even after merging remote changes."
+    exit 1
+  fi
+else
+  echo "ERROR: Push failed: $push_err"
+  exit 1
+fi

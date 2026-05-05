@@ -81,6 +81,7 @@ scripts/
 - Orval `UseQueryOptions` en TanQuery v5 requiert `queryKey` dans les options passées — ne pas passer `{ query: { enabled } }` directement ; gérer la condition avant l'appel du hook
 - Les workflows peuvent planter sur "port already in use" après un redémarrage système — redémarrer manuellement
 - Orval regenerates `lib/api-zod/src/index.ts` — ne pas éditer manuellement ; modifier `orval.config.ts` à la place
+- Token expiry alerts : définir `NOTIFY_WEBHOOK_URL` (secret Replit) pour activer les alertes webhook Slack/Discord quand le token expire. `NOTIFY_DAYS_THRESHOLD` (défaut : 7) contrôle le seuil. Cooldown 24h pour éviter le spam.
 
 ## Pointers
 

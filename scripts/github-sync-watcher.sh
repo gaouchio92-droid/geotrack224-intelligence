@@ -7,10 +7,70 @@ TOKEN_CHECK_INTERVAL=3600
 last_token_check=0
 
 # ---------------------------------------------------------------------------
+# Notification configuration (all via environment variables — no code changes
+# needed to adjust behaviour):
+#
+#   NOTIFY_WEBHOOK_URL    — webhook endpoint to POST alerts to (Slack, Discord,
+#                           or any service that accepts a JSON POST body).
+#                           Leave unset to disable notifications.
+#   NOTIFY_DAYS_THRESHOLD — alert when the token expires within this many days.
+#                           Defaults to 7.
+#
+# The payload includes both "text" (Slack) and "content" (Discord) keys so
+# the same URL works for either service without extra config.
+# ---------------------------------------------------------------------------
+NOTIFY_DAYS_THRESHOLD="${NOTIFY_DAYS_THRESHOLD:-7}"
+
+# send_token_alert <days_remaining> <expiry_date>
+#   Sends a webhook notification if NOTIFY_WEBHOOK_URL is configured.
+#   A cooldown file prevents duplicate alerts within a 24-hour window so the
+#   periodic token check doesn't spam the channel every hour.
+send_token_alert() {
+  local days_remaining="$1"
+  local expiry_date="$2"
+
+  if [ -z "$NOTIFY_WEBHOOK_URL" ]; then
+    return 0
+  fi
+
+  local cooldown_file="/tmp/github-token-notify-cooldown"
+  local cooldown_seconds=86400
+  local now
+  now=$(date +%s)
+
+  if [ -f "$cooldown_file" ]; then
+    local last_sent
+    last_sent=$(cat "$cooldown_file" 2>/dev/null || echo "0")
+    if [ $(( now - last_sent )) -lt "$cooldown_seconds" ]; then
+      echo "$(date -u): INFO: Notification suppressed — already sent within the last 24 hours."
+      return 0
+    fi
+  fi
+
+  local message
+  message="⚠️ GitHub token expiry warning: GITHUB_TOKEN for geotrack224-intelligence expires in ${days_remaining} day(s) (on ${expiry_date}). Please rotate the token in Replit Secrets to avoid sync failures."
+
+  local http_code
+  http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+    -X POST \
+    -H "Content-Type: application/json" \
+    --data "{\"text\": \"${message}\", \"content\": \"${message}\"}" \
+    "$NOTIFY_WEBHOOK_URL" 2>/dev/null || echo "000")
+
+  if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+    echo "$(date -u): INFO: Token expiry alert sent via webhook (HTTP ${http_code})."
+    echo "$now" > "$cooldown_file"
+  else
+    echo "$(date -u): WARNING: Failed to send token expiry alert via webhook (HTTP ${http_code})."
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # check_github_token
 #   Validates the current GITHUB_TOKEN against the GitHub API.
 #   - Logs an ERROR and returns 1 if the token is invalid/expired/revoked.
-#   - Logs a WARNING if the token expires within 7 days.
+#   - Logs a WARNING and fires a webhook alert if the token expires within
+#     NOTIFY_DAYS_THRESHOLD days.
 #   - Returns 0 on success so the caller can decide whether to continue.
 # ---------------------------------------------------------------------------
 check_github_token() {
@@ -48,8 +108,9 @@ check_github_token() {
       if [ "$days_remaining" -le 0 ]; then
         echo "$(date -u): ERROR: GITHUB_TOKEN expired on ${expiry_value}. Update the Replit secret immediately. Sync is paused."
         return 1
-      elif [ "$days_remaining" -le 7 ]; then
+      elif [ "$days_remaining" -le "$NOTIFY_DAYS_THRESHOLD" ]; then
         echo "$(date -u): WARNING: GITHUB_TOKEN expires in ${days_remaining} day(s) (on ${expiry_value}). Rotate it in Replit Secrets soon."
+        send_token_alert "$days_remaining" "$expiry_value"
       else
         echo "$(date -u): INFO: GITHUB_TOKEN is valid — expires in ${days_remaining} day(s) (on ${expiry_value})."
       fi
@@ -64,6 +125,11 @@ check_github_token() {
 echo "GitHub sync watcher started (polling every ${POLL_INTERVAL}s)"
 echo "Watching for unpushed commits on 'main' → github.com/${GITHUB_REPO}"
 echo "NOTE: GITHUB_TOKEN must be stored as a Replit Secret (not a plain env var) for security."
+if [ -n "$NOTIFY_WEBHOOK_URL" ]; then
+  echo "INFO: Token expiry notifications enabled (threshold: ${NOTIFY_DAYS_THRESHOLD} day(s), cooldown: 24 h)."
+else
+  echo "INFO: Token expiry notifications disabled. Set NOTIFY_WEBHOOK_URL to enable webhook alerts."
+fi
 
 while true; do
   sleep "$POLL_INTERVAL"
