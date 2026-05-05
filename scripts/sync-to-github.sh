@@ -73,6 +73,6 @@ echo "Syncing branch 'main' to GitHub repository: ${GITHUB_REPO}"
 
 git -c user.email="replit-sync@noreply.github.com" \
     -c user.name="Replit Sync" \
-    push --force "$PUSH_URL" HEAD:main
+    push "$PUSH_URL" HEAD:main
 
 echo "Sync to GitHub completed successfully."
