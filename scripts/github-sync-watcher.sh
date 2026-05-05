@@ -67,8 +67,11 @@ send_token_alert() {
 
 # ---------------------------------------------------------------------------
 # check_github_token
-#   Validates the current GITHUB_TOKEN against the GitHub API.
-#   - Logs an ERROR and returns 1 if the token is invalid/expired/revoked.
+#   Validates the current GITHUB_TOKEN against the GitHub API with up to
+#   3 attempts and exponential back-off (2 s, 4 s) between retries.
+#   - Fails fast on 401/403 (genuine auth error) without waiting for retries.
+#   - Logs a WARN (not ERROR) for transient non-auth failures and retries.
+#   - Logs an ERROR and returns 1 if all attempts fail or token is bad.
 #   - Logs a WARNING and fires a webhook alert if the token expires within
 #     NOTIFY_DAYS_THRESHOLD days.
 #   - Returns 0 on success so the caller can decide whether to continue.
@@ -77,19 +80,41 @@ check_github_token() {
   local header_file
   header_file=$(mktemp)
 
-  local http_code
-  http_code=$(curl -s \
-    -D "$header_file" \
-    -o /dev/null \
-    -w "%{http_code}" \
-    -H "Authorization: token ${GITHUB_TOKEN}" \
-    -H "Accept: application/vnd.github.v3+json" \
-    "https://api.github.com/user")
+  local http_code attempt max_attempts backoff_seconds
+  max_attempts=3
+  backoff_seconds=2
+
+  for attempt in $(seq 1 "$max_attempts"); do
+    http_code=$(curl -s \
+      -D "$header_file" \
+      -o /dev/null \
+      -w "%{http_code}" \
+      -H "Authorization: token ${GITHUB_TOKEN}" \
+      -H "Accept: application/vnd.github.v3+json" \
+      "https://api.github.com/user" 2>/dev/null || echo "000")
+
+    if [ "$http_code" = "200" ]; then
+      break
+    fi
+
+    # 401/403 = genuine auth failure — fail fast, no retry
+    if [ "$http_code" = "401" ] || [ "$http_code" = "403" ]; then
+      rm -f "$header_file"
+      echo "$(date -u): ERROR: GITHUB_TOKEN is invalid, expired, or revoked (GitHub API returned HTTP ${http_code})."
+      echo "$(date -u): ERROR: Update the GITHUB_TOKEN Replit secret with a valid personal access token. Sync is paused."
+      return 1
+    fi
+
+    if [ "$attempt" -lt "$max_attempts" ]; then
+      echo "$(date -u): WARNING: GitHub API returned HTTP ${http_code} (attempt ${attempt}/${max_attempts}) — retrying in ${backoff_seconds}s."
+      sleep "$backoff_seconds"
+      backoff_seconds=$(( backoff_seconds * 2 ))
+    fi
+  done
 
   if [ "$http_code" != "200" ]; then
     rm -f "$header_file"
-    echo "$(date -u): ERROR: GITHUB_TOKEN is invalid, expired, or revoked (GitHub API returned HTTP ${http_code})."
-    echo "$(date -u): ERROR: Update the GITHUB_TOKEN Replit secret with a valid personal access token. Sync is paused."
+    echo "$(date -u): ERROR: GitHub API returned HTTP ${http_code} after ${max_attempts} attempts — token validation failed. Sync is paused."
     return 1
   fi
 
