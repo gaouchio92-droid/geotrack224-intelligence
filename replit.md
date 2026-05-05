@@ -82,6 +82,7 @@ scripts/
 - Les workflows peuvent planter sur "port already in use" après un redémarrage système — redémarrer manuellement
 - Orval regenerates `lib/api-zod/src/index.ts` — ne pas éditer manuellement ; modifier `orval.config.ts` à la place
 - Token expiry alerts : définir `NOTIFY_WEBHOOK_URL` (secret Replit) pour activer les alertes webhook Slack/Discord quand le token expire. `NOTIFY_DAYS_THRESHOLD` (défaut : 7) contrôle le seuil. Cooldown 24h pour éviter le spam.
+- Retry GitHub API : `GITHUB_API_MAX_RETRIES` (défaut : 3) et `GITHUB_API_BACKOFF_SECONDS` (défaut : 2) configurent les tentatives et le délai de back-off exponentiel dans `validate_github_token` et `check_github_token` sans toucher au code.
 
 ## Pointers
 

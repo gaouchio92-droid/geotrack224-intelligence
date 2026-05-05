@@ -16,16 +16,26 @@ fi
 # Notification configuration (all via environment variables — no code changes
 # needed to adjust behaviour):
 #
-#   NOTIFY_WEBHOOK_URL    — webhook endpoint to POST alerts to (Slack, Discord,
-#                           or any service that accepts a JSON POST body).
-#                           Leave unset to disable notifications.
-#   NOTIFY_DAYS_THRESHOLD — alert when the token expires within this many days.
-#                           Defaults to 7.
+#   NOTIFY_WEBHOOK_URL      — webhook endpoint to POST alerts to (Slack, Discord,
+#                             or any service that accepts a JSON POST body).
+#                             Leave unset to disable notifications.
+#   NOTIFY_DAYS_THRESHOLD   — alert when the token expires within this many days.
+#                             Defaults to 7.
+#
+# Retry / back-off configuration:
+#
+#   GITHUB_API_MAX_RETRIES    — maximum number of attempts for the GitHub API
+#                               token-validation call. Defaults to 3.
+#   GITHUB_API_BACKOFF_SECONDS — initial back-off interval (seconds) between
+#                               retries; doubles on each subsequent attempt
+#                               (e.g. 2 → 4 → 8 s). Defaults to 2.
 #
 # The payload includes both "text" (Slack) and "content" (Discord) keys so
 # the same URL works for either service without extra config.
 # ---------------------------------------------------------------------------
 NOTIFY_DAYS_THRESHOLD="${NOTIFY_DAYS_THRESHOLD:-7}"
+GITHUB_API_MAX_RETRIES="${GITHUB_API_MAX_RETRIES:-3}"
+GITHUB_API_BACKOFF_SECONDS="${GITHUB_API_BACKOFF_SECONDS:-2}"
 
 # send_token_alert <days_remaining> <expiry_date>
 #   Sends a webhook notification if NOTIFY_WEBHOOK_URL is configured.
@@ -87,8 +97,8 @@ validate_github_token() {
   header_file=$(mktemp)
 
   local http_code attempt max_attempts backoff_seconds
-  max_attempts=3
-  backoff_seconds=2
+  max_attempts="${GITHUB_API_MAX_RETRIES}"
+  backoff_seconds="${GITHUB_API_BACKOFF_SECONDS}"
 
   for attempt in $(seq 1 "$max_attempts"); do
     http_code=$(curl -s \
