@@ -23,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plus, Edit, Trash2, MapPin, Car, Package, User, Navigation, RadioReceiver, Key, Copy, Check, RefreshCw } from "lucide-react";
+import { Plus, Edit, Trash2, MapPin, Car, Package, User, Navigation, RadioReceiver, Key, Copy, Check, RefreshCw, Signal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -101,7 +101,7 @@ function TokensPanel({ device }: { device: Device }) {
   const [labelInput, setLabelInput] = useState("");
   const [newTokenValue, setNewTokenValue] = useState<string | null>(null);
 
-  const { data: tokens = [], isLoading } = useListDeviceTokens(device.id);
+  const { data: tokens = [], isLoading } = useListDeviceTokens(device.id, { query: { queryKey: getListDeviceTokensQueryKey(device.id), refetchInterval: 10_000 } });
   const createToken = useCreateDeviceToken();
   const revokeToken = useRevokeDeviceToken();
 
@@ -510,9 +510,17 @@ export default function Devices() {
               >
                 {/* Top: status dot + name + type badge */}
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className={cn("w-2.5 h-2.5 rounded-full shrink-0 mt-0.5", statusColors[device.status as keyof typeof statusColors])} />
-                    <span className="font-bold font-mono truncate">{device.name}</span>
+                  <div className="flex flex-col min-w-0 gap-1">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={cn("w-2.5 h-2.5 rounded-full shrink-0 mt-0.5", statusColors[device.status as keyof typeof statusColors])} />
+                      <span className="font-bold font-mono truncate">{device.name}</span>
+                    </div>
+                    {device.lastIngestedAt && (
+                      <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/50 bg-emerald-500/10 font-mono gap-1 w-fit ml-5">
+                        <Signal className="w-3 h-3" />
+                        tracker réel
+                      </Badge>
+                    )}
                   </div>
                   <div className={cn(
                     "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold shrink-0",
@@ -622,7 +630,17 @@ export default function Devices() {
                     <span className="text-xs font-mono">{statusLabels[device.status] || device.status}</span>
                   </div>
                 </TableCell>
-                <TableCell className="font-medium">{device.name}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {device.name}
+                    {device.lastIngestedAt && (
+                      <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/50 bg-emerald-500/10 font-mono gap-1 shrink-0">
+                        <Signal className="w-3 h-3" />
+                        tracker réel
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <TypeIcon type={device.type} className="w-4 h-4 text-muted-foreground" />

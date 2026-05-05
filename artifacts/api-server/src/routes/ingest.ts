@@ -85,7 +85,7 @@ router.post("/ingest", async (req, res) => {
 
     await db
       .update(devicesTable)
-      .set({ status: newStatus, updatedAt: new Date() })
+      .set({ status: newStatus, updatedAt: new Date(), lastIngestedAt: new Date() })
       .where(eq(devicesTable.id, deviceId));
 
     if (prevStatus !== newStatus) {

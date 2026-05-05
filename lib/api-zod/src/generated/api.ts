@@ -34,6 +34,7 @@ export const ListDevicesResponseItem = zod.object({
   userId: zod.number().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
+  lastIngestedAt: zod.coerce.date().optional(),
 });
 export const ListDevicesResponse = zod.array(ListDevicesResponseItem);
 
@@ -69,6 +70,7 @@ export const GetDeviceResponse = zod.object({
   userId: zod.number().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
+  lastIngestedAt: zod.coerce.date().optional(),
 });
 
 /**
@@ -99,6 +101,7 @@ export const UpdateDeviceResponse = zod.object({
   userId: zod.number().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
+  lastIngestedAt: zod.coerce.date().optional(),
 });
 
 /**
@@ -132,6 +135,7 @@ export const AssignDeviceResponse = zod.object({
   userId: zod.number().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
+  lastIngestedAt: zod.coerce.date().optional(),
 });
 
 /**

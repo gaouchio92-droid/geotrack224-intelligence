@@ -16,6 +16,7 @@ export const devicesTable = pgTable("devices", {
   userId: integer("user_id").references(() => usersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  lastIngestedAt: timestamp("last_ingested_at"),
 });
 
 export const insertDeviceSchema = createInsertSchema(devicesTable).omit({

@@ -38,6 +38,7 @@ export interface Device {
   userId?: number;
   createdAt: string;
   updatedAt: string;
+  lastIngestedAt?: string;
 }
 
 export type CreateDeviceBodyType =
