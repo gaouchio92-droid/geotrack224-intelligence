@@ -158,41 +158,116 @@ PUSH_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPO}.git"
 echo "Syncing branch 'main' to GitHub repository: ${GITHUB_REPO}"
 
 # ---------------------------------------------------------------------------
+# push_with_retry <label> <push_url> [extra git args...]
+#   Attempts a git push up to 3 times with exponential back-off (5 s, 10 s).
+#   - Auth errors (token rejected, password wrong) fail immediately without
+#     retrying; they will not succeed on a retry.
+#   - Non-fast-forward / ref-lock errors are NOT retried here because they
+#     require a merge step — the caller handles those separately.
+#   - All other failures (network timeouts, DNS, HTTP 5xx from GitHub, etc.)
+#     are treated as transient: logged as WARN and retried.
+#   Returns 0 on success, 1 on final failure.
+#   Writes the last push stderr to /tmp/push_err on failure so the caller
+#   can inspect it.
+# ---------------------------------------------------------------------------
+push_with_retry() {
+  local label="$1"
+  local push_url="$2"
+  shift 2
+  local extra_args=("$@")
+
+  local max_attempts=3
+  local backoff_seconds=5
+  local attempt
+  local push_err_file
+  push_err_file=$(mktemp)
+
+  for attempt in $(seq 1 "$max_attempts"); do
+    if git push "$push_url" HEAD:main "${extra_args[@]}" 2>"$push_err_file"; then
+      rm -f "$push_err_file"
+      return 0
+    fi
+
+    local push_err
+    push_err=$(cat "$push_err_file")
+
+    # Auth failures: never succeed on retry — bail out immediately.
+    if echo "$push_err" | grep -qi \
+        "authentication failed\|invalid username\|could not read password\|\[remote rejected\].*authentication\|http.*401\|http.*403"; then
+      rm -f "$push_err_file"
+      echo "ERROR: Push failed with an authentication error (${label}) — token may be invalid or revoked."
+      echo "ERROR: Push output: ${push_err}"
+      return 1
+    fi
+
+    # Non-fast-forward / ref-lock: signal to caller without retrying here.
+    if echo "$push_err" | grep -q "non-fast-forward\|fetch first\|cannot lock ref"; then
+      cp "$push_err_file" /tmp/push_err
+      rm -f "$push_err_file"
+      return 2
+    fi
+
+    # Transient failure — log and retry if attempts remain.
+    if [ "$attempt" -lt "$max_attempts" ]; then
+      echo "WARNING: Push failed (${label}, attempt ${attempt}/${max_attempts}) — retrying in ${backoff_seconds}s."
+      echo "WARNING: Push output: ${push_err}"
+      sleep "$backoff_seconds"
+      backoff_seconds=$(( backoff_seconds * 2 ))
+    else
+      cp "$push_err_file" /tmp/push_err
+      rm -f "$push_err_file"
+      echo "ERROR: Push failed (${label}) after ${max_attempts} attempts — giving up."
+      echo "ERROR: Last push output: ${push_err}"
+      return 1
+    fi
+  done
+}
+
+# ---------------------------------------------------------------------------
 # Try a normal (fast-forward) push first.
 # If it fails with a non-fast-forward error (i.e. the remote has commits
 # that our local branch doesn't have), fetch the remote changes and merge
 # them before retrying. This handles the case where task agents have pushed
 # commits directly to GitHub, causing the histories to diverge.
 # ---------------------------------------------------------------------------
-if git push "$PUSH_URL" HEAD:main 2>/tmp/push_err; then
+push_rc=0
+push_with_retry "fast-forward" "$PUSH_URL" || push_rc=$?
+
+if [ "$push_rc" -eq 0 ]; then
   echo "Sync to GitHub completed successfully."
   exit 0
 fi
 
-push_err=$(cat /tmp/push_err)
+if [ "$push_rc" -eq 1 ]; then
+  # Auth error or exhausted retries — already logged inside the function.
+  exit 1
+fi
+
+# push_rc == 2: non-fast-forward — fetch, merge, then retry with back-off.
+push_err=$(cat /tmp/push_err 2>/dev/null || true)
 rm -f /tmp/push_err
 
-if echo "$push_err" | grep -q "non-fast-forward\|fetch first\|cannot lock ref"; then
-  echo "WARNING: Non-fast-forward push detected — fetching remote changes and merging."
+echo "WARNING: Non-fast-forward push detected — fetching remote changes and merging."
 
-  FETCH_REMOTE="github-sync-fetch-remote-$$"
-  git remote add "$FETCH_REMOTE" "$PUSH_URL" 2>/dev/null || true
-  git fetch "$FETCH_REMOTE" main
+FETCH_REMOTE="github-sync-fetch-remote-$$"
+git remote add "$FETCH_REMOTE" "$PUSH_URL" 2>/dev/null || true
+git fetch "$FETCH_REMOTE" main
 
-  # Merge remote changes, preferring our local version on conflict
-  git merge --no-edit -X ours "FETCH_HEAD" \
-    -m "chore: merge remote GitHub changes (sync reconciliation)"
+# Merge remote changes, preferring our local version on conflict
+git merge --no-edit -X ours "FETCH_HEAD" \
+  -m "chore: merge remote GitHub changes (sync reconciliation)"
 
-  git remote remove "$FETCH_REMOTE" 2>/dev/null || true
+git remote remove "$FETCH_REMOTE" 2>/dev/null || true
 
-  # Retry the push after the merge
-  if git push "$PUSH_URL" HEAD:main; then
-    echo "Sync to GitHub completed successfully (after merge)."
-  else
-    echo "ERROR: Push failed even after merging remote changes."
-    exit 1
-  fi
+# Retry the push after the merge (with back-off for transient errors).
+merge_push_rc=0
+push_with_retry "post-merge" "$PUSH_URL" || merge_push_rc=$?
+
+if [ "$merge_push_rc" -eq 0 ]; then
+  echo "Sync to GitHub completed successfully (after merge)."
+elif [ "$merge_push_rc" -eq 2 ]; then
+  echo "ERROR: Push failed even after merging remote changes (repeated non-fast-forward)."
+  exit 1
 else
-  echo "ERROR: Push failed: $push_err"
   exit 1
 fi
