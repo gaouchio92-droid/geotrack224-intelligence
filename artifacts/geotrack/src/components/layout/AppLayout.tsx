@@ -1,14 +1,14 @@
 import { Link, useLocation } from "wouter";
-import { Activity, Bell, Compass, LayoutDashboard, Map as MapIcon, Settings } from "lucide-react";
+import { Bell, Compass, LayoutDashboard, Map as MapIcon, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
 
   const navigation = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Devices", href: "/devices", icon: Compass },
-    { name: "Alerts", href: "/alerts", icon: Bell },
+    { name: "Tableau de bord", href: "/", icon: LayoutDashboard, testId: "dashboard" },
+    { name: "Appareils", href: "/devices", icon: Compass, testId: "devices" },
+    { name: "Alertes", href: "/alerts", icon: Bell, testId: "alerts" },
   ];
 
   return (
@@ -26,7 +26,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         <div className="flex-1 overflow-y-auto py-6 px-3">
           <div className="space-y-1">
-            <div className="px-3 text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider mb-2">Platform</div>
+            <div className="px-3 text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider mb-2">Plateforme</div>
             {navigation.map((item) => {
               const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
               return (
@@ -38,7 +38,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                         ? "bg-primary/10 text-primary"
                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                     )}
-                    data-testid={`nav-${item.name.toLowerCase()}`}
+                    data-testid={`nav-${item.testId}`}
                   >
                     <item.icon className="w-4 h-4" />
                     {item.name}
@@ -52,7 +52,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="p-4 border-t border-border/50">
           <div className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground cursor-pointer transition-colors">
             <Settings className="w-4 h-4" />
-            System Settings
+            Paramètres système
           </div>
         </div>
       </aside>

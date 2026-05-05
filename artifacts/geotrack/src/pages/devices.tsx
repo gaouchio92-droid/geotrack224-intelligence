@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Edit, Trash2, MapPin, Car, Package, User, Navigation, RadioReceiver } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 
@@ -31,6 +32,19 @@ const statusColors = {
   [DeviceStatus.moving]: "bg-emerald-500",
   [DeviceStatus.stopped]: "bg-amber-500",
   [DeviceStatus.offline]: "bg-rose-500",
+};
+
+const statusLabels: Record<string, string> = {
+  moving: "En mouvement",
+  stopped: "À l'arrêt",
+  offline: "Hors ligne",
+};
+
+const typeLabels: Record<string, string> = {
+  vehicle: "Véhicule",
+  asset: "Actif",
+  person: "Personnel",
+  drone: "Drone",
 };
 
 const TypeIcon = ({ type, className }: { type: string, className?: string }) => {
@@ -100,7 +114,7 @@ export default function Devices() {
       updateDevice.mutate({ id: editingDevice.id, data: payload }, {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListDevicesQueryKey() });
-          toast({ title: "Device updated successfully" });
+          toast({ title: "Appareil mis à jour avec succès" });
           setIsFormOpen(false);
         }
       });
@@ -108,7 +122,7 @@ export default function Devices() {
       createDevice.mutate({ data: payload }, {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListDevicesQueryKey() });
-          toast({ title: "Device created successfully" });
+          toast({ title: "Appareil enregistré avec succès" });
           setIsFormOpen(false);
         }
       });
@@ -116,11 +130,11 @@ export default function Devices() {
   };
 
   const handleDelete = (id: number) => {
-    if (!confirm("Are you sure you want to delete this device?")) return;
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cet appareil ?")) return;
     deleteDevice.mutate({ id }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListDevicesQueryKey() });
-        toast({ title: "Device deleted successfully" });
+        toast({ title: "Appareil supprimé avec succès" });
       }
     });
   };
@@ -129,24 +143,24 @@ export default function Devices() {
     <div className="p-6 h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold font-mono uppercase tracking-tight">Devices Management</h1>
-          <p className="text-muted-foreground">Manage all tracked entities across operations</p>
+          <h1 className="text-2xl font-bold font-mono uppercase tracking-tight">Gestion des appareils</h1>
+          <p className="text-muted-foreground">Gérer toutes les entités suivies dans les opérations</p>
         </div>
         
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => handleOpenForm()} data-testid="btn-add-device">
               <Plus className="w-4 h-4 mr-2" />
-              Register Device
+              Enregistrer un appareil
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>{editingDevice ? "Edit Device" : "Register New Device"}</DialogTitle>
+              <DialogTitle>{editingDevice ? "Modifier l'appareil" : "Enregistrer un nouvel appareil"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Device Name</Label>
+                <Label htmlFor="name">Nom de l'appareil</Label>
                 <Input 
                   id="name" 
                   value={formData.name} 
@@ -159,17 +173,18 @@ export default function Devices() {
                 <Label htmlFor="type">Type</Label>
                 <Select value={formData.type} onValueChange={v => setFormData({...formData, type: v})}>
                   <SelectTrigger data-testid="select-type">
-                    <SelectValue placeholder="Select type" />
+                    <SelectValue placeholder="Sélectionner un type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.values(DeviceType).map(t => (
-                      <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
-                    ))}
+                    <SelectItem value={DeviceType.vehicle}>Véhicule</SelectItem>
+                    <SelectItem value={DeviceType.asset}>Actif</SelectItem>
+                    <SelectItem value={DeviceType.person}>Personnel</SelectItem>
+                    <SelectItem value={DeviceType.drone}>Drone</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="imei">IMEI / Identifier</Label>
+                <Label htmlFor="imei">IMEI / Identifiant</Label>
                 <Input 
                   id="imei" 
                   value={formData.imei} 
@@ -179,7 +194,7 @@ export default function Devices() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="speedLimit">Speed Limit (km/h) - Optional</Label>
+                <Label htmlFor="speedLimit">Limite de vitesse (km/h) — Optionnel</Label>
                 <Input 
                   id="speedLimit" 
                   type="number"
@@ -189,7 +204,7 @@ export default function Devices() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="groupName">Group Name - Optional</Label>
+                <Label htmlFor="groupName">Nom du groupe — Optionnel</Label>
                 <Input 
                   id="groupName" 
                   value={formData.groupName} 
@@ -199,7 +214,7 @@ export default function Devices() {
               </div>
               <div className="flex justify-end pt-4">
                 <Button type="submit" disabled={createDevice.isPending || updateDevice.isPending} data-testid="btn-submit-device">
-                  {editingDevice ? "Update" : "Register"}
+                  {editingDevice ? "Mettre à jour" : "Enregistrer"}
                 </Button>
               </div>
             </form>
@@ -211,48 +226,48 @@ export default function Devices() {
         <Table>
           <TableHeader className="bg-muted/50 sticky top-0 z-10 backdrop-blur">
             <TableRow>
-              <TableHead>Status</TableHead>
-              <TableHead>Name</TableHead>
+              <TableHead>Statut</TableHead>
+              <TableHead>Nom</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>IMEI</TableHead>
-              <TableHead>Group</TableHead>
-              <TableHead>Last Updated</TableHead>
+              <TableHead>Groupe</TableHead>
+              <TableHead>Dernière mise à jour</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">Loading devices...</TableCell>
+                <TableCell colSpan={7} className="h-24 text-center">Chargement des appareils...</TableCell>
               </TableRow>
             ) : devices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">No devices registered</TableCell>
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">Aucun appareil enregistré</TableCell>
               </TableRow>
             ) : devices.map(device => (
               <TableRow key={device.id} data-testid={`device-row-${device.id}`}>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <div className={`w-2.5 h-2.5 rounded-full ${statusColors[device.status as keyof typeof statusColors]}`} />
-                    <span className="capitalize text-xs font-mono">{device.status}</span>
+                    <span className="text-xs font-mono">{statusLabels[device.status] || device.status}</span>
                   </div>
                 </TableCell>
                 <TableCell className="font-medium">{device.name}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <TypeIcon type={device.type} className="w-4 h-4 text-muted-foreground" />
-                    <span className="capitalize">{device.type}</span>
+                    <span>{typeLabels[device.type] || device.type}</span>
                   </div>
                 </TableCell>
                 <TableCell className="font-mono text-xs text-muted-foreground">{device.imei}</TableCell>
                 <TableCell>{device.groupName ? <Badge variant="outline">{device.groupName}</Badge> : '-'}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">
-                  {formatDistanceToNow(new Date(device.updatedAt), { addSuffix: true })}
+                  {formatDistanceToNow(new Date(device.updatedAt), { addSuffix: true, locale: fr })}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">
                     <Link href={`/history/${device.id}`}>
-                      <Button variant="ghost" size="icon" title="View History" data-testid={`btn-history-${device.id}`}>
+                      <Button variant="ghost" size="icon" title="Voir l'historique" data-testid={`btn-history-${device.id}`}>
                         <MapPin className="w-4 h-4" />
                       </Button>
                     </Link>

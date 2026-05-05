@@ -1,10 +1,11 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { LivePosition, DeviceStatus } from "@workspace/api-client-react";
 import { Clock, Navigation, Zap } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
 
 // Fix Leaflet icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -14,10 +15,23 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
+const typeLabels: Record<string, string> = {
+  vehicle: "Véhicule",
+  asset: "Actif",
+  person: "Personnel",
+  drone: "Drone",
+};
+
+const statusLabels: Record<string, string> = {
+  moving: "En mouvement",
+  stopped: "À l'arrêt",
+  offline: "Hors ligne",
+};
+
 const createCustomIcon = (status: string) => {
-  let color = "#ef4444"; // offline (red)
-  if (status === DeviceStatus.moving) color = "#10b981"; // moving (green)
-  if (status === DeviceStatus.stopped) color = "#f59e0b"; // stopped (amber)
+  let color = "#ef4444";
+  if (status === DeviceStatus.moving) color = "#10b981";
+  if (status === DeviceStatus.stopped) color = "#f59e0b";
 
   const svgIcon = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="24" height="24" stroke="white" stroke-width="1.5">
@@ -52,7 +66,7 @@ interface MapProps {
 }
 
 export function LiveMap({ positions, selectedDeviceId, onSelectDevice }: MapProps) {
-  const defaultCenter: [number, number] = [9.5, -13.7]; // Conakry, Guinea
+  const defaultCenter: [number, number] = [9.5, -13.7];
   const defaultZoom = 7;
   
   const selectedPosition = positions.find(p => p.deviceId === selectedDeviceId);
@@ -85,7 +99,9 @@ export function LiveMap({ positions, selectedDeviceId, onSelectDevice }: MapProp
             <Popup className="custom-popup">
               <div className="p-1 min-w-[200px]" data-testid={`map-popup-${pos.deviceId}`}>
                 <div className="font-bold text-sm mb-1">{pos.deviceName}</div>
-                <div className="text-xs text-muted-foreground capitalize mb-2">{pos.deviceType} • {pos.status}</div>
+                <div className="text-xs text-muted-foreground mb-2">
+                  {typeLabels[pos.deviceType] || pos.deviceType} • {statusLabels[pos.status] || pos.status}
+                </div>
                 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="flex items-center gap-1">
@@ -94,11 +110,11 @@ export function LiveMap({ positions, selectedDeviceId, onSelectDevice }: MapProp
                   </div>
                   <div className="flex items-center gap-1">
                     <Navigation className="w-3 h-3 text-primary" />
-                    <span>{Math.round(pos.heading)}°</span>
+                    <span>Cap {Math.round(pos.heading)}°</span>
                   </div>
                   <div className="flex items-center gap-1 col-span-2">
                     <Clock className="w-3 h-3 text-primary" />
-                    <span>{formatDistanceToNow(new Date(pos.timestamp), { addSuffix: true })}</span>
+                    <span>{formatDistanceToNow(new Date(pos.timestamp), { addSuffix: true, locale: fr })}</span>
                   </div>
                 </div>
               </div>

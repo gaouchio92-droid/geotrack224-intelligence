@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDistanceToNow, format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { AlertTriangle, CheckCircle, Clock, Filter, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,7 +29,7 @@ export default function Alerts() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-        toast({ title: "Alert acknowledged" });
+        toast({ title: "Alerte acquittée" });
       }
     });
   };
@@ -39,33 +40,33 @@ export default function Alerts() {
         <div>
           <h1 className="text-2xl font-bold font-mono uppercase tracking-tight flex items-center gap-2">
             <ShieldAlert className="w-6 h-6 text-primary" />
-            Alerts Log
+            Journal des alertes
           </h1>
-          <p className="text-muted-foreground mt-1">System warnings and rule violations</p>
+          <p className="text-muted-foreground mt-1">Avertissements système et violations de règles</p>
         </div>
 
         <div className="flex gap-3">
           <Select value={filterType} onValueChange={setFilterType}>
             <SelectTrigger className="w-[180px]" data-testid="filter-type">
               <Filter className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="Alert Type" />
+              <SelectValue placeholder="Type d'alerte" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value={AlertType.overspeed}>Overspeed</SelectItem>
-              <SelectItem value={AlertType.geofence}>Geofence</SelectItem>
-              <SelectItem value={AlertType.offline}>Offline</SelectItem>
+              <SelectItem value="all">Tous les types</SelectItem>
+              <SelectItem value={AlertType.overspeed}>Excès de vitesse</SelectItem>
+              <SelectItem value={AlertType.geofence}>Géofence</SelectItem>
+              <SelectItem value={AlertType.offline}>Hors ligne</SelectItem>
             </SelectContent>
           </Select>
           
           <Select value={filterAck} onValueChange={setFilterAck}>
             <SelectTrigger className="w-[180px]" data-testid="filter-ack">
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder="Statut" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="false">Unacknowledged</SelectItem>
-              <SelectItem value="true">Acknowledged</SelectItem>
+              <SelectItem value="all">Tous les statuts</SelectItem>
+              <SelectItem value="false">Non acquittées</SelectItem>
+              <SelectItem value="true">Acquittées</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -73,10 +74,10 @@ export default function Alerts() {
 
       <div className="flex-1 overflow-auto pr-4 space-y-4 pb-12">
         {isLoading ? (
-          <div className="text-center p-8 text-muted-foreground font-mono">Loading alerts...</div>
+          <div className="text-center p-8 text-muted-foreground font-mono">Chargement des alertes...</div>
         ) : alerts.length === 0 ? (
           <div className="text-center p-12 border border-dashed rounded-lg text-muted-foreground font-mono">
-            No alerts found for the current filters.
+            Aucune alerte trouvée pour les filtres actuels.
           </div>
         ) : alerts.map(alert => (
           <div 
@@ -96,7 +97,7 @@ export default function Alerts() {
             <div className="flex-1">
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-3">
-                  <h3 className="font-bold text-lg">{alert.deviceName || 'Unknown Device'}</h3>
+                  <h3 className="font-bold text-lg">{alert.deviceName || 'Appareil inconnu'}</h3>
                   <Badge variant={alert.acknowledged ? "outline" : "default"} className={`
                     uppercase font-mono text-[10px] tracking-wider
                     ${!alert.acknowledged && alert.severity === AlertSeverity.critical ? 'bg-rose-500 text-white' : ''}
@@ -104,14 +105,19 @@ export default function Alerts() {
                     ${!alert.acknowledged && alert.severity === AlertSeverity.medium ? 'bg-amber-500 text-black' : ''}
                     ${!alert.acknowledged && alert.severity === AlertSeverity.low ? 'bg-blue-500 text-white' : ''}
                   `}>
-                    {alert.severity}
+                    {alert.severity === AlertSeverity.critical ? 'critique' :
+                     alert.severity === AlertSeverity.high ? 'élevée' :
+                     alert.severity === AlertSeverity.medium ? 'moyenne' : 'faible'}
                   </Badge>
-                  <Badge variant="outline" className="uppercase font-mono text-[10px]">{alert.type}</Badge>
+                  <Badge variant="outline" className="uppercase font-mono text-[10px]">
+                    {alert.type === AlertType.overspeed ? 'vitesse' :
+                     alert.type === AlertType.geofence ? 'géofence' : 'hors ligne'}
+                  </Badge>
                 </div>
                 <div className="flex items-center text-xs text-muted-foreground font-mono gap-1">
                   <Clock className="w-3 h-3" />
-                  {format(new Date(alert.createdAt), 'MMM dd, HH:mm:ss')} 
-                  ({formatDistanceToNow(new Date(alert.createdAt), { addSuffix: true })})
+                  {format(new Date(alert.createdAt), 'dd MMM, HH:mm:ss', { locale: fr })} 
+                  ({formatDistanceToNow(new Date(alert.createdAt), { addSuffix: true, locale: fr })})
                 </div>
               </div>
               
@@ -122,7 +128,7 @@ export default function Alerts() {
                   {alert.acknowledged && (
                     <span className="text-xs text-emerald-500 flex items-center gap-1 font-mono">
                       <CheckCircle className="w-3 h-3" /> 
-                      Acknowledged {alert.acknowledgedAt ? formatDistanceToNow(new Date(alert.acknowledgedAt), { addSuffix: true }) : ''}
+                      Acquittée {alert.acknowledgedAt ? formatDistanceToNow(new Date(alert.acknowledgedAt), { addSuffix: true, locale: fr }) : ''}
                     </span>
                   )}
                 </div>
@@ -134,7 +140,7 @@ export default function Alerts() {
                     disabled={acknowledgeAlert.isPending}
                     data-testid={`btn-ack-${alert.id}`}
                   >
-                    Acknowledge
+                    Acquitter
                   </Button>
                 )}
               </div>
