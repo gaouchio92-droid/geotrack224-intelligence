@@ -1,15 +1,21 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, Compass, LayoutDashboard, Menu, Settings, Wifi, WifiOff, X } from "lucide-react";
+import { Bell, Compass, LayoutDashboard, LogOut, Menu, Settings, Wifi, WifiOff, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GeoTrackLogo } from "./GeoTrackLogo";
 import { useWebsocket } from "@/hooks/use-websocket";
+import { useAuth } from "@/hooks/use-auth";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { isConnected } = useWebsocket();
+  const { auth, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const isAdmin = auth.status === "authenticated" && auth.user.role === "admin";
+  const userName = auth.status === "authenticated" ? auth.user.name : "";
 
   const navigation = [
     { name: "Tableau de bord", href: "/", icon: LayoutDashboard, testId: "dashboard" },
@@ -121,30 +127,51 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border/50 shrink-0">
-          <Link href="/settings">
-            <div
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
-                isActive("/settings")
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-              )}
-              data-testid="nav-settings"
-              onClick={() => setMobileOpen(false)}
-            >
-              <Settings className="w-4 h-4 shrink-0" />
-              Paramètres système
+        <div className="p-4 border-t border-border/50 shrink-0 space-y-1">
+          {/* Settings — admins only */}
+          {isAdmin && (
+            <Link href="/settings">
+              <div
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                  isActive("/settings")
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                )}
+                data-testid="nav-settings"
+                onClick={() => setMobileOpen(false)}
+              >
+                <Settings className="w-4 h-4 shrink-0" />
+                Paramètres système
+              </div>
+            </Link>
+          )}
+
+          {/* User + logout */}
+          <div className="flex items-center justify-between px-3 py-1.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className={cn(
+                "w-1.5 h-1.5 rounded-full shrink-0",
+                isConnected ? "bg-emerald-500 animate-pulse" : "bg-rose-400"
+              )} />
+              <span className="text-[10px] font-mono text-muted-foreground truncate">
+                {userName || (isConnected ? "Flux WebSocket actif" : "Reconnexion...")}
+              </span>
             </div>
-          </Link>
-          <div className="mt-2 px-3 py-1.5 flex items-center gap-2">
-            <div className={cn(
-              "w-1.5 h-1.5 rounded-full shrink-0",
-              isConnected ? "bg-emerald-500 animate-pulse" : "bg-rose-400"
-            )} />
-            <span className="text-[10px] font-mono text-muted-foreground">
-              {isConnected ? "Flux WebSocket actif" : "Reconnexion..."}
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground shrink-0"
+                  onClick={() => logout()}
+                  data-testid="btn-logout"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Se déconnecter</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </aside>
@@ -156,7 +183,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* ── Bottom navigation (mobile only) ── */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 h-16 bg-card border-t border-border flex items-stretch">
-        {[...navigation, { name: "Paramètres", href: "/settings", icon: Settings, testId: "settings" }].map((item) => (
+        {[
+          ...navigation,
+          ...(isAdmin ? [{ name: "Paramètres", href: "/settings", icon: Settings, testId: "settings" }] : []),
+        ].map((item) => (
           <Link key={item.href} href={item.href} className="flex-1">
             <div className={cn(
               "flex flex-col items-center justify-center h-full gap-1 text-[10px] font-mono transition-colors",

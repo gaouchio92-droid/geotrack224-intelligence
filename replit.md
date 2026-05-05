@@ -48,6 +48,7 @@ scripts/
 
 ## Architecture decisions
 
+- **Auth** : express-session (cookie `geotrack.sid`, 7 jours) + bcryptjs (coût 12). Routes `/api/auth/login|me|logout|change-password`. Session stockée en mémoire (MemoryStore). Rôles : `admin` (accès total), `operator`, `viewer`. Mot de passe par défaut admin : `Admin224!` — à changer via `/api/auth/change-password`. Script de seed : `scripts/seed-admin-password.ts`
 - **Contract-first** : OpenAPI spec → Orval génère hooks et schemas → serveur valide avec Zod
 - **Simulateur en mémoire** : 10 appareils simulés avec tick 3s, positions en Guinée (9–11.5°N, -14.5–-10.5°E)
 - **WebSocket broadcast** : `position_update`, `alert`, `device_status_change` — clients invalident React Query
@@ -57,12 +58,13 @@ scripts/
 
 ## Product
 
+- **Authentification** : login email+mot de passe, sessions Express, accès par rôle (admin/operator/viewer)
 - Tableau de bord temps réel : carte Leaflet sombre + liste filtrée des cibles + stats
 - Gestion complète CRUD des appareils (véhicule/actif/personnel/drone)
 - Journal des alertes (excès vitesse, géofence, hors-ligne) avec acquittement
 - Historique des positions par appareil (timeline chronologique)
-- **Paramètres système** : CRUD groupes (couleur, description), CRUD utilisateurs (rôle, groupe), assignation d'appareils à des groupes/utilisateurs
-- Indicateur de connexion WebSocket dans la sidebar (Live / Reconnexion)
+- **Paramètres système** (admins uniquement) : CRUD groupes, CRUD utilisateurs, assignation d'appareils
+- Indicateur de connexion WebSocket dans la sidebar (Live / Reconnexion) + bouton déconnexion
 - Sync automatique vers GitHub toutes les 30s avec validation du token
 
 ## User preferences
@@ -75,7 +77,7 @@ scripts/
 ## Gotchas
 
 - Ne jamais utiliser `console.log` côté serveur : utiliser `req.log` dans les routes, `logger` ailleurs
-- Ne jamais importer `from "zod/v4"` — le workspace utilise zod v3 (`from "zod"`)
+- Ne jamais importer `from "zod/v4"` — règle générale, **exception** : `lib/db/src/schema/users.ts` doit importer `from "zod/v4"` pour la compatibilité drizzle-zod (le schéma utilise `ZodInt` de v4)
 - La branche `main` sur GitHub est protégée (no force push) — le script gère le merge auto
 - Les filtres sur `devicesTable` doivent passer par SQL (`and(...conditions)`) pas en JS
 - Orval `UseQueryOptions` en TanQuery v5 requiert `queryKey` dans les options passées — ne pas passer `{ query: { enabled } }` directement ; gérer la condition avant l'appel du hook
