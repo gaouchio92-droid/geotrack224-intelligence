@@ -1,0 +1,75 @@
+name: Vérification description PR
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  check-pr-description:
+    name: Description non vide
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (pour lire le template)
+        uses: actions/checkout@v4
+
+      - name: Vérifier la description de la PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const body = context.payload.pull_request.body ?? '';
+
+            // ── 1. Vide total ──────────────────────────────────────────────
+            if (!body.trim()) {
+              core.setFailed(
+                '❌ La description de cette PR est vide.\n\n' +
+                'Veuillez remplir le modèle fourni avec au minimum :\n' +
+                '  • Un résumé des changements effectués\n' +
+                '  • Le type de changement (bug, feature, refactoring…)\n' +
+                '  • Les tests effectués'
+              );
+              return;
+            }
+
+            // ── 2. Identique au template brut ─────────────────────────────
+            let templateRaw = '';
+            try {
+              templateRaw = fs.readFileSync('.github/pull_request_template.md', 'utf8');
+            } catch (_) {
+              // Pas de template — on ne peut pas comparer, on continue
+            }
+
+            if (templateRaw && body.trim() === templateRaw.trim()) {
+              core.setFailed(
+                '❌ La description de cette PR n\'a pas été modifiée : elle est identique au modèle vide.\n\n' +
+                'Remplissez les sections du modèle avant de soumettre votre PR.'
+              );
+              return;
+            }
+
+            // ── 3. Aucun contenu réel (structure seule) ───────────────────
+            // Retire les commentaires HTML, titres markdown, cases à cocher,
+            // tirets vides et espaces — s'il ne reste rien, le template n'a
+            // pas été rempli.
+            const meaningful = body
+              .replace(/<!--[\s\S]*?-->/g, '')   // commentaires HTML
+              .replace(/^##\s+.+$/gm, '')         // titres de section
+              .replace(/^- \[[ x]\]\s*.*$/gm, '') // cases à cocher
+              .replace(/^-\s*$/gm, '')             // tirets vides
+              .replace(/\s+/g, ' ')
+              .trim();
+
+            if (meaningful.length < 20) {
+              core.setFailed(
+                '❌ La description de cette PR ne contient pas de contenu significatif.\n\n' +
+                'Remplissez au minimum la section « Résumé des changements » avec ' +
+                'une description de ce que fait cette PR et pourquoi.\n\n' +
+                'Contenu détecté (hors structure du modèle) : ' +
+                (meaningful.length === 0 ? '(rien)' : `« ${meaningful} »`)
+              );
+              return;
+            }
+
+            console.log('✅ Description de la PR validée (' + meaningful.length + ' caractères de contenu).');
