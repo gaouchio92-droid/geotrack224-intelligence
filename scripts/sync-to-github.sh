@@ -263,6 +263,15 @@ FETCH_REMOTE="github-sync-fetch-remote-$$"
 git remote add "$FETCH_REMOTE" "$PUSH_URL" 2>/dev/null || true
 git fetch "$FETCH_REMOTE" main
 
+# Ensure git identity is set — required for the merge commit.
+# Prefer any pre-configured global identity; fall back to a neutral default.
+if ! git config user.email > /dev/null 2>&1; then
+  git config --local user.email "geotrack-sync@replit.local"
+fi
+if ! git config user.name > /dev/null 2>&1; then
+  git config --local user.name "GeoTrack Sync"
+fi
+
 # Merge remote changes, preferring our local version on conflict
 git merge --no-edit -X ours "FETCH_HEAD" \
   -m "chore: merge remote GitHub changes (sync reconciliation)"
