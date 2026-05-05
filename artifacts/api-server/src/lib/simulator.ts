@@ -85,6 +85,16 @@ async function tick() {
       const newStatus = sim.speed > 0.5 ? "moving" : "stopped";
       const [device] = await db.select().from(devicesTable).where(eq(devicesTable.id, sim.deviceId));
 
+      if (device) {
+        const recentIngest = device.lastIngestedAt &&
+          now.getTime() - new Date(device.lastIngestedAt).getTime() < 30 * 60 * 1000;
+        if (!recentIngest) {
+          await db.update(devicesTable)
+            .set({ lastPositionSource: "simulator" })
+            .where(eq(devicesTable.id, sim.deviceId));
+        }
+      }
+
       if (device && device.status !== newStatus) {
         await db.update(devicesTable).set({ status: newStatus, updatedAt: now }).where(eq(devicesTable.id, sim.deviceId));
         const statusFr = newStatus === "moving" ? "en mouvement" : "à l'arrêt";

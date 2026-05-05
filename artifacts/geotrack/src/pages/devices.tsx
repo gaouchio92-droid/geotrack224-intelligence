@@ -520,7 +520,7 @@ export default function Devices() {
                       <div className={cn("w-2.5 h-2.5 rounded-full shrink-0 mt-0.5", statusColors[device.status as keyof typeof statusColors])} />
                       <span className="font-bold font-mono truncate">{device.name}</span>
                     </div>
-                    {isActiveRealTracker(device.lastIngestedAt) && (
+                    {device.lastPositionSource === "ingest" && isActiveRealTracker(device.lastIngestedAt) && (
                       <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/50 bg-emerald-500/10 font-mono gap-1 w-fit ml-5">
                         <Signal className="w-3 h-3" />
                         tracker réel
@@ -638,7 +638,7 @@ export default function Devices() {
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-2 flex-wrap">
                     {device.name}
-                    {isActiveRealTracker(device.lastIngestedAt) && (
+                    {device.lastPositionSource === "ingest" && isActiveRealTracker(device.lastIngestedAt) && (
                       <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/50 bg-emerald-500/10 font-mono gap-1 shrink-0">
                         <Signal className="w-3 h-3" />
                         tracker réel
