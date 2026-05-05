@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { Bell, Compass, LayoutDashboard, Map as MapIcon, Settings } from "lucide-react";
+import { Bell, Compass, LayoutDashboard, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { GeoTrackLogo } from "./GeoTrackLogo";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -17,9 +18,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <aside className="w-64 border-r border-border bg-card flex flex-col shadow-xl z-20 relative">
         <div className="h-16 flex items-center px-6 border-b border-border/50">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-              <MapIcon className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <GeoTrackLogo size={36} />
             <span className="font-mono font-bold tracking-tight text-lg text-foreground">GeoTrack<span className="text-primary">224</span></span>
           </div>
         </div>
