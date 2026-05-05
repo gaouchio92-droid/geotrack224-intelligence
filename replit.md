@@ -39,7 +39,7 @@ lib/
   api-client-react/      — Hooks React Query générés par Orval
   api-zod/               — Schémas Zod générés par Orval (mode single → generated/api.ts)
   db/                    — Schéma Drizzle + connexion PostgreSQL
-    schema/              — devices.ts, groups.ts, users.ts, positions.ts, alerts.ts, activity.ts
+    schema/              — devices.ts, groups.ts, users.ts, positions.ts, alerts.ts, activity.ts, device-tokens.ts
 scripts/
   sync-to-github.sh      — Push vers GitHub (fetch+merge si non-fast-forward)
   github-sync-watcher.sh — Démon polling 30s, validation token, sync auto
@@ -66,6 +66,7 @@ scripts/
 - **Paramètres système** (admins uniquement) : CRUD groupes, CRUD utilisateurs, assignation d'appareils
 - Indicateur de connexion WebSocket dans la sidebar (Live / Reconnexion) + bouton déconnexion
 - Sync automatique vers GitHub toutes les 30s avec validation du token
+- **Intégration trackers GPS réels** : tokens d'accès par appareil (génération/révocation), endpoint public `POST /api/ingest` (Bearer token ou ?token=), pipeline position identique au simulateur (alertes, WebSocket, historique), panneau UI dans /devices avec onglet "Comment configurer" (curl exemple + format JSON)
 
 ## User preferences
 

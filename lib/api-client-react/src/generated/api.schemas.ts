@@ -274,6 +274,36 @@ export interface UpdateUserBody {
   groupId?: number;
 }
 
+export interface DeviceToken {
+  id: number;
+  deviceId: number;
+  label: string;
+  createdAt: string;
+  lastUsedAt?: string;
+}
+
+export interface DeviceTokenCreated {
+  id: number;
+  deviceId: number;
+  label: string;
+  token: string;
+  createdAt: string;
+}
+
+export interface CreateDeviceTokenBody {
+  label?: string;
+}
+
+export interface IngestGpsBody {
+  latitude: number;
+  longitude: number;
+  speed?: number;
+  heading?: number;
+  altitude?: number;
+  accuracy?: number;
+  timestamp?: string;
+}
+
 export type ListDevicesParams = {
   type?: ListDevicesType;
   status?: ListDevicesStatus;
@@ -297,6 +327,10 @@ export const ListDevicesStatus = {
   stopped: "stopped",
   offline: "offline",
 } as const;
+
+export type IngestGpsPositionParams = {
+  token?: string;
+};
 
 export type GetDeviceHistoryParams = {
   limit?: number;

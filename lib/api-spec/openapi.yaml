@@ -22,6 +22,10 @@ tags:
     description: Group management
   - name: users
     description: User management
+  - name: tokens
+    description: Device access token management
+  - name: ingest
+    description: Public GPS data ingestion
 paths:
   /healthz:
     get:
@@ -162,6 +166,103 @@ paths:
                 $ref: "#/components/schemas/Device"
         "404":
           description: Not found
+
+  /devices/{id}/tokens:
+    get:
+      operationId: listDeviceTokens
+      tags: [tokens]
+      summary: List access tokens for a device
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DeviceToken"
+        "404":
+          description: Device not found
+    post:
+      operationId: createDeviceToken
+      tags: [tokens]
+      summary: Generate a new access token for a device
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDeviceTokenBody"
+      responses:
+        "201":
+          description: Token created (token value shown only once)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceTokenCreated"
+        "404":
+          description: Device not found
+
+  /devices/{id}/tokens/{tokenId}:
+    delete:
+      operationId: revokeDeviceToken
+      tags: [tokens]
+      summary: Revoke an access token
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: tokenId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Token revoked
+        "404":
+          description: Token not found
+
+  /ingest:
+    post:
+      operationId: ingestGpsPosition
+      tags: [ingest]
+      summary: Public endpoint — ingest a GPS position from a real tracker
+      parameters:
+        - name: token
+          in: query
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IngestGpsBody"
+      responses:
+        "201":
+          description: Position recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Position"
+        "401":
+          description: Invalid or revoked token
 
   /devices/{id}/positions:
     get:
@@ -856,3 +957,73 @@ components:
           enum: [admin, operator, viewer]
         groupId:
           type: integer
+
+    DeviceToken:
+      type: object
+      properties:
+        id:
+          type: integer
+        deviceId:
+          type: integer
+        label:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - deviceId
+        - label
+        - createdAt
+
+    DeviceTokenCreated:
+      type: object
+      properties:
+        id:
+          type: integer
+        deviceId:
+          type: integer
+        label:
+          type: string
+        token:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - deviceId
+        - label
+        - token
+        - createdAt
+
+    CreateDeviceTokenBody:
+      type: object
+      properties:
+        label:
+          type: string
+
+    IngestGpsBody:
+      type: object
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+        speed:
+          type: number
+        heading:
+          type: number
+        altitude:
+          type: number
+        accuracy:
+          type: number
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - latitude
+        - longitude

@@ -4,8 +4,12 @@ import {
   useCreateDevice,
   useUpdateDevice,
   useDeleteDevice,
+  useListDeviceTokens,
+  useCreateDeviceToken,
+  useRevokeDeviceToken,
   getListDevicesQueryKey,
-  Device, DeviceType, DeviceStatus
+  getListDeviceTokensQueryKey,
+  Device, DeviceType, DeviceStatus, DeviceToken
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -17,12 +21,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, MapPin, Car, Package, User, Navigation, RadioReceiver } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Plus, Edit, Trash2, MapPin, Car, Package, User, Navigation, RadioReceiver, Key, Copy, Check, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
+
+const INGEST_URL = `${window.location.protocol}//${window.location.host}/api/ingest`;
 
 const statusColors = {
   [DeviceStatus.moving]: "bg-emerald-500",
@@ -72,6 +80,236 @@ const defaultForm: DeviceFormData = {
   name: "", type: DeviceType.vehicle, imei: "", speedLimit: "", groupName: ""
 };
 
+function CopyButton({ text, className }: { text: string; className?: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <Button variant="ghost" size="icon" className={cn("h-7 w-7 shrink-0", className)} onClick={handleCopy}>
+      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+    </Button>
+  );
+}
+
+function TokensPanel({ device }: { device: Device }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [labelInput, setLabelInput] = useState("");
+  const [newTokenValue, setNewTokenValue] = useState<string | null>(null);
+
+  const { data: tokens = [], isLoading } = useListDeviceTokens(device.id);
+  const createToken = useCreateDeviceToken();
+  const revokeToken = useRevokeDeviceToken();
+
+  const handleGenerate = () => {
+    createToken.mutate(
+      { id: device.id, data: { label: labelInput || undefined } },
+      {
+        onSuccess: (created) => {
+          setNewTokenValue(created.token);
+          setLabelInput("");
+          queryClient.invalidateQueries({ queryKey: getListDeviceTokensQueryKey(device.id) });
+          toast({ title: "Token généré avec succès" });
+        },
+        onError: () => {
+          toast({ title: "Erreur lors de la génération du token", variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const handleRevoke = (tokenId: number) => {
+    if (!confirm("Révoquer ce token ? Les trackers qui l'utilisent ne pourront plus envoyer de positions.")) return;
+    revokeToken.mutate(
+      { id: device.id, tokenId },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListDeviceTokensQueryKey(device.id) });
+          toast({ title: "Token révoqué" });
+        },
+        onError: () => {
+          toast({ title: "Erreur lors de la révocation", variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  return (
+    <Tabs defaultValue="tokens">
+      <TabsList className="w-full">
+        <TabsTrigger value="tokens" className="flex-1">Tokens actifs</TabsTrigger>
+        <TabsTrigger value="doc" className="flex-1">Comment configurer</TabsTrigger>
+      </TabsList>
+
+      {/* ── Tokens tab ── */}
+      <TabsContent value="tokens" className="space-y-4 mt-4">
+
+        {/* New token alert */}
+        {newTokenValue && (
+          <Alert className="border-emerald-500/50 bg-emerald-500/10">
+            <AlertDescription className="space-y-2">
+              <p className="text-sm font-semibold text-emerald-400">
+                Token généré — copiez-le maintenant, il ne sera plus affiché !
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="text-xs font-mono bg-black/30 px-2 py-1 rounded flex-1 break-all">
+                  {newTokenValue}
+                </code>
+                <CopyButton text={newTokenValue} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">URL complète :</span>
+                <code className="text-xs font-mono bg-black/30 px-2 py-1 rounded flex-1 break-all">
+                  {INGEST_URL}
+                </code>
+                <CopyButton text={INGEST_URL} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">curl exemple :</span>
+                <CopyButton text={`curl -X POST ${INGEST_URL} \\\n  -H "Authorization: Bearer ${newTokenValue}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"latitude":9.5370,"longitude":-13.6773,"speed":0,"heading":0}'`} />
+              </div>
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => setNewTokenValue(null)}>
+                Fermer
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Generate form */}
+        <div className="flex gap-2">
+          <Input
+            placeholder="Label (ex: Teltonika-01) — optionnel"
+            value={labelInput}
+            onChange={(e) => setLabelInput(e.target.value)}
+            className="text-sm"
+          />
+          <Button
+            size="sm"
+            onClick={handleGenerate}
+            disabled={createToken.isPending}
+            className="shrink-0"
+          >
+            {createToken.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
+            Générer
+          </Button>
+        </div>
+
+        {/* Token list */}
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground text-center py-4">Chargement...</p>
+        ) : tokens.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            Aucun token actif. Générez un token pour connecter un tracker GPS réel.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {tokens.map((t: DeviceToken) => (
+              <div
+                key={t.id}
+                className="flex items-center justify-between gap-3 border border-border/50 rounded-md p-3 bg-muted/20"
+              >
+                <div className="min-w-0 space-y-0.5">
+                  <p className="text-sm font-mono font-medium truncate">
+                    {t.label || <span className="text-muted-foreground italic">Sans label</span>}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Créé {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true, locale: fr })}
+                    {t.lastUsedAt && (
+                      <> · Utilisé {formatDistanceToNow(new Date(t.lastUsedAt), { addSuffix: true, locale: fr })}</>
+                    )}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                  onClick={() => handleRevoke(t.id)}
+                  disabled={revokeToken.isPending}
+                  title="Révoquer ce token"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </TabsContent>
+
+      {/* ── Doc tab ── */}
+      <TabsContent value="doc" className="space-y-4 mt-4 text-sm">
+        <div className="space-y-3">
+          <div>
+            <p className="font-semibold mb-1">URL d'ingestion</p>
+            <div className="flex items-center gap-2 bg-muted/30 rounded p-2">
+              <code className="font-mono text-xs flex-1 break-all">{INGEST_URL}</code>
+              <CopyButton text={INGEST_URL} />
+            </div>
+          </div>
+
+          <div>
+            <p className="font-semibold mb-1">Authentification</p>
+            <p className="text-muted-foreground text-xs">
+              Envoyez le token dans l'en-tête <code className="font-mono bg-muted/30 px-1 rounded">Authorization: Bearer &lt;token&gt;</code> ou
+              en paramètre URL <code className="font-mono bg-muted/30 px-1 rounded">?token=&lt;token&gt;</code>.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold mb-1">Format JSON</p>
+            <div className="relative">
+              <pre className="bg-muted/30 rounded p-3 text-xs font-mono overflow-x-auto">
+{`{
+  "latitude":  9.5370,   // requis
+  "longitude": -13.6773, // requis
+  "speed":     45.2,     // km/h (optionnel)
+  "heading":   180,      // degrés (optionnel)
+  "altitude":  420,      // mètres (optionnel)
+  "accuracy":  5.0,      // mètres (optionnel)
+  "timestamp": "2026-05-05T12:00:00Z" // ISO 8601 (optionnel)
+}`}
+              </pre>
+              <CopyButton
+                text={`{"latitude":9.5370,"longitude":-13.6773,"speed":0,"heading":0}`}
+                className="absolute top-2 right-2"
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="font-semibold mb-1">Exemple curl</p>
+            <div className="relative">
+              <pre className="bg-muted/30 rounded p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
+{`curl -X POST ${INGEST_URL} \\
+  -H "Authorization: Bearer <votre-token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"latitude":9.5370,"longitude":-13.6773,"speed":0,"heading":0}'`}
+              </pre>
+              <CopyButton
+                text={`curl -X POST ${INGEST_URL} \\\n  -H "Authorization: Bearer <votre-token>" \\\n  -H "Content-Type: application/json" \\\n  -d '{"latitude":9.5370,"longitude":-13.6773,"speed":0,"heading":0}'`}
+                className="absolute top-2 right-2"
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="font-semibold mb-1">Compatibilité trackers</p>
+            <ul className="text-muted-foreground text-xs space-y-1 list-disc list-inside">
+              <li>Teltonika (FMB920, FMB140…) : configurez le serveur HTTP avec l'URL ci-dessus</li>
+              <li>Concox (GT06N, WeTrack2…) : utilisez le mode envoi HTTP/HTTPS</li>
+              <li>Téléphones Android : application GPSLogger ou OsmAnd avec URL personnalisée</li>
+              <li>Tout appareil capable d'envoyer des requêtes HTTP POST JSON</li>
+            </ul>
+          </div>
+        </div>
+      </TabsContent>
+    </Tabs>
+  );
+}
+
 export default function Devices() {
   const { data: devices = [], isLoading } = useListDevices();
   const queryClient = useQueryClient();
@@ -80,6 +318,7 @@ export default function Devices() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
   const [formData, setFormData] = useState<DeviceFormData>(defaultForm);
+  const [tokensDevice, setTokensDevice] = useState<Device | null>(null);
 
   const createDevice = useCreateDevice();
   const updateDevice = useUpdateDevice();
@@ -224,8 +463,23 @@ export default function Devices() {
     </Dialog>
   );
 
+  const tokensDialog = tokensDevice && (
+    <Dialog open={!!tokensDevice} onOpenChange={(open) => { if (!open) setTokensDevice(null); }}>
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Key className="w-4 h-4" />
+            Tokens d'accès — {tokensDevice.name}
+          </DialogTitle>
+        </DialogHeader>
+        <TokensPanel device={tokensDevice} />
+      </DialogContent>
+    </Dialog>
+  );
+
   return (
     <div className="p-4 sm:p-6 h-full flex flex-col">
+      {tokensDialog}
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-4 sm:mb-6 gap-3">
@@ -299,6 +553,16 @@ export default function Devices() {
                       Historique
                     </Button>
                   </Link>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs gap-1.5"
+                    onClick={() => setTokensDevice(device)}
+                    data-testid={`btn-tokens-${device.id}`}
+                  >
+                    <Key className="w-3.5 h-3.5" />
+                    Tokens
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -379,6 +643,15 @@ export default function Devices() {
                         <MapPin className="w-4 h-4" />
                       </Button>
                     </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Tokens d'accès"
+                      onClick={() => setTokensDevice(device)}
+                      data-testid={`btn-tokens-${device.id}`}
+                    >
+                      <Key className="w-4 h-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"

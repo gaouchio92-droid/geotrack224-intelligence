@@ -21,14 +21,19 @@ import type {
   Alert,
   AssignDeviceBody,
   CreateDeviceBody,
+  CreateDeviceTokenBody,
   CreateGroupBody,
   CreateUserBody,
   DashboardSummary,
   Device,
+  DeviceToken,
+  DeviceTokenCreated,
   GetDeviceHistoryParams,
   GetRecentActivityParams,
   Group,
   HealthStatus,
+  IngestGpsBody,
+  IngestGpsPositionParams,
   IngestPositionBody,
   ListAlertsParams,
   ListDevicesParams,
@@ -645,6 +650,364 @@ export const useAssignDevice = <
   TContext
 > => {
   return useMutation(getAssignDeviceMutationOptions(options));
+};
+
+/**
+ * @summary List access tokens for a device
+ */
+export const getListDeviceTokensUrl = (id: number) => {
+  return `/api/devices/${id}/tokens`;
+};
+
+export const listDeviceTokens = async (
+  id: number,
+  options?: RequestInit,
+): Promise<DeviceToken[]> => {
+  return customFetch<DeviceToken[]>(getListDeviceTokensUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDeviceTokensQueryKey = (id: number) => {
+  return [`/api/devices/${id}/tokens`] as const;
+};
+
+export const getListDeviceTokensQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDeviceTokens>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDeviceTokens>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListDeviceTokensQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDeviceTokens>>
+  > = ({ signal }) => listDeviceTokens(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDeviceTokens>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDeviceTokensQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDeviceTokens>>
+>;
+export type ListDeviceTokensQueryError = ErrorType<void>;
+
+/**
+ * @summary List access tokens for a device
+ */
+
+export function useListDeviceTokens<
+  TData = Awaited<ReturnType<typeof listDeviceTokens>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDeviceTokens>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDeviceTokensQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Generate a new access token for a device
+ */
+export const getCreateDeviceTokenUrl = (id: number) => {
+  return `/api/devices/${id}/tokens`;
+};
+
+export const createDeviceToken = async (
+  id: number,
+  createDeviceTokenBody: CreateDeviceTokenBody,
+  options?: RequestInit,
+): Promise<DeviceTokenCreated> => {
+  return customFetch<DeviceTokenCreated>(getCreateDeviceTokenUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createDeviceTokenBody),
+  });
+};
+
+export const getCreateDeviceTokenMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createDeviceToken>>,
+    TError,
+    { id: number; data: BodyType<CreateDeviceTokenBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createDeviceToken>>,
+  TError,
+  { id: number; data: BodyType<CreateDeviceTokenBody> },
+  TContext
+> => {
+  const mutationKey = ["createDeviceToken"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createDeviceToken>>,
+    { id: number; data: BodyType<CreateDeviceTokenBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return createDeviceToken(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateDeviceTokenMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createDeviceToken>>
+>;
+export type CreateDeviceTokenMutationBody = BodyType<CreateDeviceTokenBody>;
+export type CreateDeviceTokenMutationError = ErrorType<void>;
+
+/**
+ * @summary Generate a new access token for a device
+ */
+export const useCreateDeviceToken = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createDeviceToken>>,
+    TError,
+    { id: number; data: BodyType<CreateDeviceTokenBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createDeviceToken>>,
+  TError,
+  { id: number; data: BodyType<CreateDeviceTokenBody> },
+  TContext
+> => {
+  return useMutation(getCreateDeviceTokenMutationOptions(options));
+};
+
+/**
+ * @summary Revoke an access token
+ */
+export const getRevokeDeviceTokenUrl = (id: number, tokenId: number) => {
+  return `/api/devices/${id}/tokens/${tokenId}`;
+};
+
+export const revokeDeviceToken = async (
+  id: number,
+  tokenId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getRevokeDeviceTokenUrl(id, tokenId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getRevokeDeviceTokenMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokeDeviceToken>>,
+    TError,
+    { id: number; tokenId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof revokeDeviceToken>>,
+  TError,
+  { id: number; tokenId: number },
+  TContext
+> => {
+  const mutationKey = ["revokeDeviceToken"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof revokeDeviceToken>>,
+    { id: number; tokenId: number }
+  > = (props) => {
+    const { id, tokenId } = props ?? {};
+
+    return revokeDeviceToken(id, tokenId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RevokeDeviceTokenMutationResult = NonNullable<
+  Awaited<ReturnType<typeof revokeDeviceToken>>
+>;
+
+export type RevokeDeviceTokenMutationError = ErrorType<void>;
+
+/**
+ * @summary Revoke an access token
+ */
+export const useRevokeDeviceToken = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokeDeviceToken>>,
+    TError,
+    { id: number; tokenId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof revokeDeviceToken>>,
+  TError,
+  { id: number; tokenId: number },
+  TContext
+> => {
+  return useMutation(getRevokeDeviceTokenMutationOptions(options));
+};
+
+/**
+ * @summary Public endpoint — ingest a GPS position from a real tracker
+ */
+export const getIngestGpsPositionUrl = (params?: IngestGpsPositionParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/ingest?${stringifiedParams}`
+    : `/api/ingest`;
+};
+
+export const ingestGpsPosition = async (
+  ingestGpsBody: IngestGpsBody,
+  params?: IngestGpsPositionParams,
+  options?: RequestInit,
+): Promise<Position> => {
+  return customFetch<Position>(getIngestGpsPositionUrl(params), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(ingestGpsBody),
+  });
+};
+
+export const getIngestGpsPositionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof ingestGpsPosition>>,
+    TError,
+    { data: BodyType<IngestGpsBody>; params?: IngestGpsPositionParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof ingestGpsPosition>>,
+  TError,
+  { data: BodyType<IngestGpsBody>; params?: IngestGpsPositionParams },
+  TContext
+> => {
+  const mutationKey = ["ingestGpsPosition"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof ingestGpsPosition>>,
+    { data: BodyType<IngestGpsBody>; params?: IngestGpsPositionParams }
+  > = (props) => {
+    const { data, params } = props ?? {};
+
+    return ingestGpsPosition(data, params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type IngestGpsPositionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof ingestGpsPosition>>
+>;
+export type IngestGpsPositionMutationBody = BodyType<IngestGpsBody>;
+export type IngestGpsPositionMutationError = ErrorType<void>;
+
+/**
+ * @summary Public endpoint — ingest a GPS position from a real tracker
+ */
+export const useIngestGpsPosition = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof ingestGpsPosition>>,
+    TError,
+    { data: BodyType<IngestGpsBody>; params?: IngestGpsPositionParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof ingestGpsPosition>>,
+  TError,
+  { data: BodyType<IngestGpsBody>; params?: IngestGpsPositionParams },
+  TContext
+> => {
+  return useMutation(getIngestGpsPositionMutationOptions(options));
 };
 
 /**

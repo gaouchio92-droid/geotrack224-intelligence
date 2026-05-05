@@ -135,6 +135,58 @@ export const AssignDeviceResponse = zod.object({
 });
 
 /**
+ * @summary List access tokens for a device
+ */
+export const ListDeviceTokensParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListDeviceTokensResponseItem = zod.object({
+  id: zod.number(),
+  deviceId: zod.number(),
+  label: zod.string(),
+  createdAt: zod.coerce.date(),
+  lastUsedAt: zod.coerce.date().optional(),
+});
+export const ListDeviceTokensResponse = zod.array(ListDeviceTokensResponseItem);
+
+/**
+ * @summary Generate a new access token for a device
+ */
+export const CreateDeviceTokenParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CreateDeviceTokenBody = zod.object({
+  label: zod.string().optional(),
+});
+
+/**
+ * @summary Revoke an access token
+ */
+export const RevokeDeviceTokenParams = zod.object({
+  id: zod.coerce.number(),
+  tokenId: zod.coerce.number(),
+});
+
+/**
+ * @summary Public endpoint — ingest a GPS position from a real tracker
+ */
+export const IngestGpsPositionQueryParams = zod.object({
+  token: zod.coerce.string().optional(),
+});
+
+export const IngestGpsPositionBody = zod.object({
+  latitude: zod.number(),
+  longitude: zod.number(),
+  speed: zod.number().optional(),
+  heading: zod.number().optional(),
+  altitude: zod.number().optional(),
+  accuracy: zod.number().optional(),
+  timestamp: zod.coerce.date().optional(),
+});
+
+/**
  * @summary Get position history for a device
  */
 export const GetDeviceHistoryParams = zod.object({
