@@ -131,7 +131,7 @@ export default function Alerts() {
                     size="sm" 
                     variant="outline" 
                     onClick={() => handleAcknowledge(alert.id)}
-                    disabled={ackMutation.isPending}
+                    disabled={acknowledgeAlert.isPending}
                     data-testid={`btn-ack-${alert.id}`}
                   >
                     Acknowledge
