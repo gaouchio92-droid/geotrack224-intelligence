@@ -159,17 +159,20 @@ overrides:
   "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"
   esbuild: "0.27.3"
   # ── Security overrides ──────────────────────────────────────────────────────
-  # Force fixed versions of vulnerable transitive dependencies.
-  # All entries here correspond to published security advisories.
-  # GHSA-c2c7-rcm5-vvqj / GHSA-3v7f-55p6-f55p — picomatch ReDoS
-  picomatch: ">=4.0.4"
-  # GHSA-j3q9-mxjg-w52f / GHSA-27v5-c462-wpq7 — path-to-regexp backtracking
-  path-to-regexp: ">=8.4.0"
-  # GHSA-r5fr-rjxr-66jc / GHSA-f23m-r3pf-42rh — lodash prototype pollution
-  lodash: ">=4.18.0"
-  # GHSA-48c2-rrv3-qjmp — yaml unsafe input parsing
-  yaml: ">=2.8.3"
-  # GHSA-f886-m6hf-6m8v — brace-expansion ReDoS
-  brace-expansion: ">=2.0.3"
-  # GHSA-qx2v-qp2m-jg93 — postcss line return parsing
-  postcss: ">=8.5.10"
+  # Force patched versions of vulnerable transitive dependencies.
+  # All entries here correspond to published GitHub Security Advisories (GHSAs).
+  # Caret ranges (^x.y.z) allow patch-level updates within the same minor, while
+  # staying reproducible — unlike open >= ranges.
+  # Verified resolved versions (pnpm-lock.yaml) are shown in comments.
+  # GHSA-c2c7-rcm5-vvqj / GHSA-3v7f-55p6-f55p — picomatch ReDoS (resolved: 4.0.4)
+  picomatch: "^4.0.4"
+  # GHSA-j3q9-mxjg-w52f / GHSA-27v5-c462-wpq7 — path-to-regexp backtracking (resolved: 8.4.2)
+  path-to-regexp: "^8.4.2"
+  # GHSA-r5fr-rjxr-66jc / GHSA-f23m-r3pf-42rh — lodash prototype pollution (resolved: 4.18.1)
+  lodash: "^4.18.1"
+  # GHSA-48c2-rrv3-qjmp — yaml unsafe input parsing (resolved: 2.8.4)
+  yaml: "^2.8.4"
+  # GHSA-f886-m6hf-6m8v — brace-expansion ReDoS (resolved: 5.0.5)
+  brace-expansion: "^5.0.5"
+  # GHSA-qx2v-qp2m-jg93 — postcss line return parsing (resolved: 8.5.14)
+  postcss: "^8.5.14"
