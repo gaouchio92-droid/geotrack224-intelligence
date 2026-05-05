@@ -37,11 +37,15 @@ jobs:
             let templateRaw = '';
             try {
               templateRaw = fs.readFileSync('.github/pull_request_template.md', 'utf8');
-            } catch (_) {
-              // Pas de template — on ne peut pas comparer, on continue
+            } catch (err) {
+              core.setFailed(
+                '❌ Impossible de lire le fichier modèle `.github/pull_request_template.md`.\n\n' +
+                'Vérifiez que le fichier existe dans la branche cible.'
+              );
+              return;
             }
 
-            if (templateRaw && body.trim() === templateRaw.trim()) {
+            if (body.trim() === templateRaw.trim()) {
               core.setFailed(
                 '❌ La description de cette PR n\'a pas été modifiée : elle est identique au modèle vide.\n\n' +
                 'Remplissez les sections du modèle avant de soumettre votre PR.'
@@ -61,7 +65,9 @@ jobs:
               .replace(/\s+/g, ' ')
               .trim();
 
-            if (meaningful.length < 20) {
+            // Seuil bas (10 car.) : on veut bloquer les templates non remplis,
+            // pas les descriptions courtes mais valides (ex. "Fix typo in README").
+            if (meaningful.length < 10) {
               core.setFailed(
                 '❌ La description de cette PR ne contient pas de contenu significatif.\n\n' +
                 'Remplissez au minimum la section « Résumé des changements » avec ' +
