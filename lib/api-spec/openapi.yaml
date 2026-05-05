@@ -3,20 +3,27 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: GeoTrack224 Intelligence API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: devices
+    description: GPS device management
+  - name: positions
+    description: GPS position tracking
+  - name: alerts
+    description: Alert management
+  - name: stats
+    description: Dashboard statistics
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +31,260 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /devices:
+    get:
+      operationId: listDevices
+      tags: [devices]
+      summary: List all tracked devices
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [vehicle, asset, person, drone]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [moving, stopped, offline]
+      responses:
+        "200":
+          description: List of devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Device"
+    post:
+      operationId: createDevice
+      tags: [devices]
+      summary: Register a new GPS device
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDeviceBody"
+      responses:
+        "201":
+          description: Device created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+
+  /devices/{id}:
+    get:
+      operationId: getDevice
+      tags: [devices]
+      summary: Get device by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Device details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        "404":
+          description: Not found
+    put:
+      operationId: updateDevice
+      tags: [devices]
+      summary: Update a device
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDeviceBody"
+      responses:
+        "200":
+          description: Device updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+    delete:
+      operationId: deleteDevice
+      tags: [devices]
+      summary: Delete a device
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /devices/{id}/positions:
+    get:
+      operationId: getDeviceHistory
+      tags: [positions]
+      summary: Get position history for a device
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Position history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Position"
+
+  /positions:
+    post:
+      operationId: ingestPosition
+      tags: [positions]
+      summary: Ingest a GPS position update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IngestPositionBody"
+      responses:
+        "201":
+          description: Position recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Position"
+
+  /positions/live:
+    get:
+      operationId: getLivePositions
+      tags: [positions]
+      summary: Get latest position for all devices
+      responses:
+        "200":
+          description: Latest positions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LivePosition"
+
+  /alerts:
+    get:
+      operationId: listAlerts
+      tags: [alerts]
+      summary: List alerts
+      parameters:
+        - name: acknowledged
+          in: query
+          schema:
+            type: boolean
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [overspeed, offline, geofence]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: List of alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Alert"
+
+  /alerts/{id}/acknowledge:
+    post:
+      operationId: acknowledgeAlert
+      tags: [alerts]
+      summary: Acknowledge an alert
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Alert acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+
+  /stats/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [stats]
+      summary: Get dashboard summary statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /stats/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [stats]
+      summary: Get recent activity feed
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityEvent"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +295,257 @@ components:
       required:
         - status
 
+    Device:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [vehicle, asset, person, drone]
+        status:
+          type: string
+          enum: [moving, stopped, offline]
+        imei:
+          type: string
+        speedLimit:
+          type: number
+        groupName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - type
+        - status
+        - imei
+        - createdAt
+        - updatedAt
+
+    CreateDeviceBody:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [vehicle, asset, person, drone]
+        imei:
+          type: string
+        speedLimit:
+          type: number
+        groupName:
+          type: string
+      required:
+        - name
+        - type
+        - imei
+
+    UpdateDeviceBody:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [vehicle, asset, person, drone]
+        speedLimit:
+          type: number
+        groupName:
+          type: string
+
+    Position:
+      type: object
+      properties:
+        id:
+          type: integer
+        deviceId:
+          type: integer
+        latitude:
+          type: number
+        longitude:
+          type: number
+        speed:
+          type: number
+        heading:
+          type: number
+        altitude:
+          type: number
+        accuracy:
+          type: number
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - id
+        - deviceId
+        - latitude
+        - longitude
+        - speed
+        - heading
+        - timestamp
+
+    LivePosition:
+      type: object
+      properties:
+        deviceId:
+          type: integer
+        deviceName:
+          type: string
+        deviceType:
+          type: string
+          enum: [vehicle, asset, person, drone]
+        status:
+          type: string
+          enum: [moving, stopped, offline]
+        latitude:
+          type: number
+        longitude:
+          type: number
+        speed:
+          type: number
+        heading:
+          type: number
+        timestamp:
+          type: string
+          format: date-time
+        groupName:
+          type: string
+      required:
+        - deviceId
+        - deviceName
+        - deviceType
+        - status
+        - latitude
+        - longitude
+        - speed
+        - heading
+        - timestamp
+
+    IngestPositionBody:
+      type: object
+      properties:
+        deviceId:
+          type: integer
+        latitude:
+          type: number
+        longitude:
+          type: number
+        speed:
+          type: number
+        heading:
+          type: number
+        altitude:
+          type: number
+        accuracy:
+          type: number
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - deviceId
+        - latitude
+        - longitude
+        - speed
+        - heading
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+        deviceId:
+          type: integer
+        deviceName:
+          type: string
+        type:
+          type: string
+          enum: [overspeed, offline, geofence]
+        message:
+          type: string
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        acknowledged:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        acknowledgedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - deviceId
+        - type
+        - message
+        - severity
+        - acknowledged
+        - createdAt
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalDevices:
+          type: integer
+        movingCount:
+          type: integer
+        stoppedCount:
+          type: integer
+        offlineCount:
+          type: integer
+        activeAlerts:
+          type: integer
+        vehicleCount:
+          type: integer
+        assetCount:
+          type: integer
+        personCount:
+          type: integer
+        droneCount:
+          type: integer
+        totalPositionsToday:
+          type: integer
+      required:
+        - totalDevices
+        - movingCount
+        - stoppedCount
+        - offlineCount
+        - activeAlerts
+        - vehicleCount
+        - assetCount
+        - personCount
+        - droneCount
+        - totalPositionsToday
+
+    ActivityEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        deviceId:
+          type: integer
+        deviceName:
+          type: string
+        type:
+          type: string
+          enum: [position_update, status_change, alert_triggered, alert_acknowledged]
+        description:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - id
+        - deviceId
+        - deviceName
+        - type
+        - description
+        - timestamp

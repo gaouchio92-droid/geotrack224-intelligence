@@ -1,5 +1,8 @@
+import { createServer } from "http";
 import app from "./app";
 import { logger } from "./lib/logger";
+import { initWebSocket } from "./lib/websocket";
+import { initSimulator, startSimulator } from "./lib/simulator";
 
 const rawPort = process.env["PORT"];
 
@@ -15,11 +18,17 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
+const server = createServer(app);
 
+initWebSocket(server);
+
+server.listen(port, async () => {
   logger.info({ port }, "Server listening");
+
+  try {
+    await initSimulator();
+    startSimulator();
+  } catch (err) {
+    logger.error({ err }, "Simulator init failed");
+  }
 });
