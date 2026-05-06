@@ -155,6 +155,8 @@ export const ListDeviceTokensResponseItem = zod.object({
   label: zod.string(),
   createdAt: zod.coerce.date(),
   lastUsedAt: zod.coerce.date().optional(),
+  requestsThisMinute: zod.number().optional(),
+  limitPerMinute: zod.number().optional(),
 });
 export const ListDeviceTokensResponse = zod.array(ListDeviceTokensResponseItem);
 

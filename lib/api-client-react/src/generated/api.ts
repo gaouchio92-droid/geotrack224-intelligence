@@ -33,6 +33,7 @@ import type {
   Group,
   HealthStatus,
   IngestGpsBody,
+  IngestGpsPosition429,
   IngestGpsPositionParams,
   IngestPositionBody,
   ListAlertsParams,
@@ -944,7 +945,7 @@ export const ingestGpsPosition = async (
 };
 
 export const getIngestGpsPositionMutationOptions = <
-  TError = ErrorType<void>,
+  TError = ErrorType<void | IngestGpsPosition429>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -985,13 +986,14 @@ export type IngestGpsPositionMutationResult = NonNullable<
   Awaited<ReturnType<typeof ingestGpsPosition>>
 >;
 export type IngestGpsPositionMutationBody = BodyType<IngestGpsBody>;
-export type IngestGpsPositionMutationError = ErrorType<void>;
+export type IngestGpsPositionMutationError =
+  ErrorType<void | IngestGpsPosition429>;
 
 /**
  * @summary Public endpoint — ingest a GPS position from a real tracker
  */
 export const useIngestGpsPosition = <
-  TError = ErrorType<void>,
+  TError = ErrorType<void | IngestGpsPosition429>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

@@ -217,34 +217,58 @@ function TokensPanel({ device }: { device: Device }) {
           </p>
         ) : (
           <div className="space-y-2">
-            {tokens.map((t: DeviceToken) => (
-              <div
-                key={t.id}
-                className="flex items-center justify-between gap-3 border border-border/50 rounded-md p-3 bg-muted/20"
-              >
-                <div className="min-w-0 space-y-0.5">
-                  <p className="text-sm font-mono font-medium truncate">
-                    {t.label || <span className="text-muted-foreground italic">Sans label</span>}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Créé {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true, locale: fr })}
-                    {t.lastUsedAt && (
-                      <> · Utilisé {formatDistanceToNow(new Date(t.lastUsedAt), { addSuffix: true, locale: fr })}</>
-                    )}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-                  onClick={() => handleRevoke(t.id)}
-                  disabled={revokeToken.isPending}
-                  title="Révoquer ce token"
+            {tokens.map((t: DeviceToken) => {
+              const used = t.requestsThisMinute ?? 0;
+              const limit = t.limitPerMinute ?? 60;
+              const pct = Math.min(100, Math.round((used / limit) * 100));
+              const isNearLimit = pct >= 80;
+              const isAtLimit = pct >= 100;
+              return (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between gap-3 border border-border/50 rounded-md p-3 bg-muted/20"
                 >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            ))}
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="text-sm font-mono font-medium truncate">
+                      {t.label || <span className="text-muted-foreground italic">Sans label</span>}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Créé {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true, locale: fr })}
+                      {t.lastUsedAt && (
+                        <> · Utilisé {formatDistanceToNow(new Date(t.lastUsedAt), { addSuffix: true, locale: fr })}</>
+                      )}
+                    </p>
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <div className="flex-1 h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            isAtLimit ? "bg-rose-500" : isNearLimit ? "bg-amber-500" : "bg-emerald-500"
+                          )}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className={cn(
+                        "text-[10px] font-mono tabular-nums shrink-0",
+                        isAtLimit ? "text-rose-400" : isNearLimit ? "text-amber-400" : "text-muted-foreground"
+                      )}>
+                        {used}/{limit} req/min
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                    onClick={() => handleRevoke(t.id)}
+                    disabled={revokeToken.isPending}
+                    title="Révoquer ce token"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         )}
       </TabsContent>

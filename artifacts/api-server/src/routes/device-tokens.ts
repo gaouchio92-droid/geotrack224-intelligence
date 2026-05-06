@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { deviceTokensTable, devicesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
+import { getRateLimitUsage } from "../lib/rate-limiter";
 
 const router = Router();
 
@@ -46,13 +47,18 @@ router.get("/devices/:id/tokens", requireAdmin, async (req, res) => {
     .orderBy(deviceTokensTable.createdAt);
 
   res.json(
-    tokens.map((t) => ({
-      id: t.id,
-      deviceId: t.deviceId,
-      label: t.label,
-      createdAt: t.createdAt,
-      lastUsedAt: t.lastUsedAt ?? undefined,
-    }))
+    tokens.map((t) => {
+      const usage = getRateLimitUsage(t.id);
+      return {
+        id: t.id,
+        deviceId: t.deviceId,
+        label: t.label,
+        createdAt: t.createdAt,
+        lastUsedAt: t.lastUsedAt ?? undefined,
+        requestsThisMinute: usage.requestsThisMinute,
+        limitPerMinute: usage.limitPerMinute,
+      };
+    })
   );
 });
 

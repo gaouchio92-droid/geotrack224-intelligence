@@ -10,6 +10,7 @@ import {
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { broadcast } from "../lib/websocket";
+import { checkRateLimit } from "../lib/rate-limiter";
 
 const router = Router();
 
@@ -41,6 +42,17 @@ router.post("/ingest", async (req, res) => {
 
   if (!tokenRow) {
     res.status(401).json({ error: "Token invalide ou révoqué" });
+    return;
+  }
+
+  const rateLimit = checkRateLimit(tokenRow.id);
+  res.setHeader("X-RateLimit-Limit", rateLimit.limit);
+  res.setHeader("X-RateLimit-Remaining", rateLimit.remaining);
+  if (!rateLimit.allowed) {
+    res.status(429).json({
+      error: "Trop de requêtes — limite de fréquence dépassée",
+      limitPerMinute: rateLimit.limit,
+    });
     return;
   }
 

@@ -290,6 +290,8 @@ export interface DeviceToken {
   label: string;
   createdAt: string;
   lastUsedAt?: string;
+  requestsThisMinute?: number;
+  limitPerMinute?: number;
 }
 
 export interface DeviceTokenCreated {
@@ -340,6 +342,11 @@ export const ListDevicesStatus = {
 
 export type IngestGpsPositionParams = {
   token?: string;
+};
+
+export type IngestGpsPosition429 = {
+  error: string;
+  limitPerMinute: number;
 };
 
 export type GetDeviceHistoryParams = {

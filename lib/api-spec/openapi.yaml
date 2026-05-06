@@ -263,6 +263,20 @@ paths:
                 $ref: "#/components/schemas/Position"
         "401":
           description: Invalid or revoked token
+        "429":
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  limitPerMinute:
+                    type: integer
+                required:
+                  - error
+                  - limitPerMinute
 
   /devices/{id}/positions:
     get:
@@ -979,6 +993,10 @@ components:
         lastUsedAt:
           type: string
           format: date-time
+        requestsThisMinute:
+          type: integer
+        limitPerMinute:
+          type: integer
       required:
         - id
         - deviceId
